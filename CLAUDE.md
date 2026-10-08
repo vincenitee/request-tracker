@@ -29,13 +29,15 @@ Project root: `C:\Vincent\Learning\request-tracker`
 |---|---|---|
 | 1. Foundation | Settings split (base/dev/prod), apps, custom User + Department, health endpoint, first migrate on MySQL | Done |
 | 2. Auth slice | JWT login/refresh, `/me/`, Angular scaffold, PrimeNG, login, interceptor, guard, layout, dashboard placeholder | Done (revised to use PrimeNG) |
-| 3. Core CRUD | Category + Request models, role-scoped API, list and form pages | Next |
-| 4. Workflow | Submit/approve/reject, StatusHistory, detail page | Planned |
-| 5. Extras | Comments, attachments, filters polish | Planned |
-| 6. Polish | Dashboard summary, tests, OpenAPI, error/loading states | Planned |
-| 7. Deploy | Gunicorn, Nginx, MySQL, `check --deploy`, `ng build` | Planned |
+| 3. Core CRUD | Category + Request models, role-scoped API, list and form pages | Done |
+| 4. Workflow | Submit/start review/approve/reject/complete, StatusHistory, detail page | Done |
+| 5. Extras | Comments, attachments (private storage, magic-byte checks), counts | Done |
+| 6. Polish | Dashboard, admin pages, throttling, OpenAPI, error/loading states, logging | Done |
+| 7. Deploy | Gunicorn, Nginx, MySQL, `check --deploy`, `ng build` | Next |
 
-Update this table at the end of each phase.
+Update this table at the end of each phase, and add a short entry to `docs/notes.md`.
+
+**Handbook:** `docs/README.md` explains how every piece works (architecture, backend, frontend, security, testing, a recipe for adding a module, troubleshooting). Read the relevant section before changing a piece, and keep it in sync when you change a rule.
 
 ## 4. Rules for Claude Code
 
@@ -76,7 +78,7 @@ request-tracker/
 │           ├── shared/       # reusable components, pipes, models (Paginated<T>)
 │           ├── layouts/      # main layout (Menubar/Toolbar)
 │           └── features/     # auth, dashboard, requests, admin
-├── docs/                     # notes.md ("how this works" entries), ERD, API notes
+├── docs/                     # handbook (README.md index, 01-07 guides), notes.md, openapi.yaml
 ├── CLAUDE.md
 └── README.md
 ```
@@ -92,7 +94,7 @@ Conventions:
 ## 6. Frontend UI library: PrimeNG
 
 - Use PrimeNG (Aura theme via `providePrimeNG`) for all UI: `p-table` with lazy server-side pagination for lists, `p-dialog` / `p-confirmDialog` for confirmations, `p-toast` for notifications, `p-fileupload` for attachments, `p-select`, `p-datepicker`, `p-tag` for status badges, `p-timeline` for status history, `p-card` for panels, Menubar/Toolbar for the layout.
-- Install: `npm install primeng @primeuix/themes primeicons` (the older `@primeng/themes` package is outdated).
+- Install with matching majors: `npm install primeng@^21 @primeuix/themes@^2 primeicons @angular/cdk@^21` for Angular 21 (`primeng@latest` may target a newer Angular; the older `@primeng/themes` package is outdated). Never use `--force`.
 - Import each PrimeNG component individually in the standalone component that uses it.
 - Wrap repeated patterns (status badge, data table, confirm dialog, file uploader) as components under `shared/` instead of repeating them.
 - Do not hand-write CSS for things PrimeNG already provides.
@@ -143,45 +145,44 @@ StatusHistory   request, from_status, to_status, changed_by, remarks, changed_at
 
 Status lifecycle: **draft → submitted → in_review → approved / rejected → completed**. Priority: low, medium, high.
 
-Business rules (in `services.py`): cannot submit an empty request; only the requester edits or deletes, and only while draft; a reviewer cannot approve their own request; every transition writes a StatusHistory row; rejecting requires remarks.
+Business rules (in `services.py`, explained in `docs/02-backend.md`): cannot submit an empty request or one with an inactive category; only the requester edits or deletes, and only while draft (admins: any); nobody starts review, approves, or rejects their own request; reviewers act only within their department; only admins complete; every transition writes a StatusHistory row in the same locked transaction; rejecting requires remarks; rejected and completed are final.
 
 ### Queryset scoping
 
 - staff: own requests only.
-- reviewer: requests whose requester is in the reviewer's department, excluding drafts. A reviewer with no department sees nothing.
+- reviewer: their own requests (any status) plus requests whose requester is in the reviewer's department, excluding drafts. A reviewer with no department sees only their own.
 - admin: all requests.
 - Use `select_related`/`prefetch_related` on list queries.
 
 ### Endpoints
 
-```
-POST   /api/v1/auth/token/           login (JWT)               [done]
-POST   /api/v1/auth/token/refresh/                              [done]
-GET    /api/v1/me/                   current user and role      [done]
-GET    /api/v1/health/                                          [done]
+All done; the full contract is `docs/openapi.yaml` (Swagger UI at `/api/v1/docs/` when DEBUG).
 
-GET/POST /api/v1/categories/         writes admin-only          [Phase 3]
-GET/POST /api/v1/requests/           ?status=&category=&priority=&search=&ordering=&page=   [Phase 3]
-GET/PATCH/DELETE /api/v1/requests/{id}/                         [Phase 3]
-POST   /api/v1/requests/{id}/submit/  /approve/  /reject/       [Phase 4]
-GET    /api/v1/requests/{id}/history/                           [Phase 4]
-GET/POST /api/v1/requests/{id}/comments/                        [Phase 5]
-POST   /api/v1/requests/{id}/attachments/                       [Phase 5]
-GET    /api/v1/dashboard/summary/                               [Phase 6]
-GET/POST /api/v1/users/              admin only                 [Phase 6]
+```
+POST   /api/v1/auth/token/                      login (JWT, throttled per IP)
+POST   /api/v1/auth/token/refresh/
+GET    /api/v1/me/                              current user, role, department
+GET    /api/v1/health/
+
+GET/POST/PATCH/DELETE /api/v1/categories/       active only; ?include_inactive=true for admins; writes admin-only
+GET/POST /api/v1/requests/                      ?status=(repeatable)&category=&priority=&needs_my_action=&search=&ordering=&page=
+GET/PATCH/DELETE /api/v1/requests/{id}/         edit/delete: own drafts (admins: any)
+POST   /api/v1/requests/{id}/submit/ start-review/ approve/ reject/ complete/   body {remarks}
+GET    /api/v1/requests/{id}/history/
+GET/POST /api/v1/requests/{id}/comments/        DELETE .../comments/{comment_id}/
+GET/POST /api/v1/requests/{id}/attachments/     multipart "file"; DELETE .../attachments/{id}/; GET .../attachments/{id}/download/
+GET    /api/v1/dashboard/summary/
+GET/POST/PATCH /api/v1/users/                   admin only; POST /users/{id}/set-password/; no DELETE
+GET/POST/PATCH/DELETE /api/v1/departments/      admin only
 ```
 
 ### Angular pages
 
-Login (done), Dashboard (placeholder done), Request list, Request form, Request detail with comments and history timeline, Admin pages for users, departments, and categories.
+Login, Dashboard, Request list / form / detail (comments, attachments, history timeline), Admin: users, departments, categories, Not found. All done.
 
-## 9. Phase 3 scope (next)
+## 9. Phase 7 scope (next)
 
-Backend: `apps/service_requests` app (`name = "apps.service_requests"`), Category and Request models (inherit TimeStampedModel, ordering `-created_at`, indexes on status and created_at), serializers (list, detail, write; status and requester are server-set), permissions and scoped queryset, django-filter `FilterSet`, search, ordering, pagination, admin registration, a dev-only idempotent `seed_demo_data` command (refuses to run when DEBUG is False, no hardcoded real password), and permission tests.
-
-Frontend: lazy-loaded `features/requests` with list, new, and edit routes; interfaces and services; PrimeNG Table with lazy pagination, debounced search, status and category filters; a shared `status-badge`; a reactive form with validation (edit only for own drafts); ConfirmDialog delete; Toast for notifications; DRF field errors shown on the form.
-
-Do NOT implement submit/approve/reject, comments, attachments, or StatusHistory in Phase 3.
+Deployment: Gunicorn behind Nginx on Linux, `config.settings.prod` completed (HTTPS redirect, HSTS, secure cookies, new `SECRET_KEY`, `ALLOWED_HOSTS`), Redis cache for throttling, Angular `ng build` served from the same domain as the API, `client_max_body_size`, backups of MySQL **and** `MEDIA_ROOT`, CI running tests and the schema check. `check --deploy` currently reports W004, W008, W009, W012, W016 (see `docs/04-security.md`).
 
 ## 10. Known shortcuts to fix before the real system
 

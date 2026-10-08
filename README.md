@@ -4,7 +4,22 @@ A small internal request-management system built with **Angular + PrimeNG**, **D
 
 This is a learning and reference project. It covers the patterns a real internal system needs (roles, workflow, audit trail, file uploads, filtering, JWT auth) in a codebase small enough to finish and reuse as a blueprint.
 
-> **Status:** in development. Phases 1 and 2 (backend foundation, JWT auth, Angular scaffold with PrimeNG login) are complete. Phase 3 (core request CRUD) is next.
+> **Status:** Phases 1–6 are complete (requests, workflow with audit trail, comments, attachments, dashboard, admin pages, throttling, OpenAPI). Phase 7 (deployment) is next.
+
+## Documentation
+
+The **[handbook in docs/](docs/README.md)** explains how every piece works and why, with Laravel/Vue comparisons:
+
+| Guide | Covers |
+|---|---|
+| [Architecture](docs/01-architecture.md) | folders, conventions, how one click travels from Angular to MySQL |
+| [Backend](docs/02-backend.md) | settings, models, serializers, viewsets, services, permissions, workflow, uploads, errors, throttling, OpenAPI |
+| [Frontend](docs/03-frontend.md) | bootstrapping, routing, guards, auth and interceptors, signals vs RxJS, forms, PrimeNG, error handling |
+| [Security](docs/04-security.md) | auth, 404 vs 403, upload hardening, `check --deploy`, production checklist |
+| [Testing](docs/05-testing.md) | test layout and techniques, manual browser checklist |
+| [Recipe: new module](docs/06-recipe-new-module.md) | step-by-step blueprint for adding your own module |
+| [Troubleshooting](docs/07-troubleshooting.md) | real problems met while building this, with fixes |
+| [Build notes](docs/notes.md) | what each phase added and the decisions taken |
 
 ## Tech stack
 
@@ -24,7 +39,9 @@ This is a learning and reference project. It covers the patterns a real internal
 - Approve/reject with remarks and a full status history (audit trail)
 - Comments and file attachments on requests
 - List with search, filters, ordering, and server-side pagination
-- Dashboard with counts by status
+- Dashboard with counts by status and a "needs my action" call-out
+- OpenAPI schema and Swagger UI (development)
+- Login throttling and one consistent JSON error shape
 - Admin management of users, departments, and categories
 
 Out of scope for the MVP: email notifications, real-time updates, multi-step approval chains, PDF export.
@@ -34,8 +51,8 @@ Out of scope for the MVP: email notifications, real-time updates, multi-step app
 | Role | Permissions |
 |---|---|
 | Staff | Create and edit own drafts, submit, view own requests, comment, upload attachments |
-| Reviewer | View non-draft requests from their department, approve/reject with remarks, comment |
-| Admin | Everything, plus manage users, departments, and categories |
+| Reviewer | View their own requests and non-draft requests from their department, start review, approve/reject with remarks (never their own), comment |
+| Admin | View all requests, review any request except their own, complete approved requests, manage users, departments, and categories |
 
 ## Project structure
 
@@ -58,7 +75,7 @@ request-tracker/
 │       ├── shared/           # reusable components, pipes, models
 │       ├── layouts/
 │       └── features/         # auth, dashboard, requests, admin
-├── docs/                     # notes, ERD, API contract
+├── docs/                     # handbook (start at docs/README.md), notes, openapi.yaml
 ├── CLAUDE.md                 # context and rules for Claude Code
 └── README.md
 ```
@@ -153,15 +170,19 @@ npm install
 ng serve
 ```
 
-Open <http://localhost:4200>. The app calls the API at the URL in `src/environments/environment.ts` (default `http://localhost:8000/api/v1`).
+Open <http://localhost:4200>. `ng serve` uses `src/environments/environment.development.ts`, which points at `http://localhost:8000/api/v1`; the production build (`environment.ts`) uses the same-domain path `/api/v1`.
 
-### 5. Demo data (from Phase 3 onward)
+### 5. Demo data
 
 ```bash
-python manage.py seed_demo_data
+python manage.py seed_demo_data                            # idempotent; prints a generated password for new demo users
+DEMO_PASSWORD=choose-one python manage.py seed_demo_data   # set or reset all demo passwords
+python manage.py seed_demo_data --reset                    # rebuild the demo users' requests from scratch
 ```
 
-Development only. It creates departments, categories, demo users (staff, reviewer, admin), and sample requests, and refuses to run when `DEBUG` is `False`.
+Development only (refuses to run when `DEBUG` is `False`). It creates departments IT and HR, four categories, the users `demo_staff`, `demo_staff_hr`, `demo_reviewer`, `demo_admin`, 15 requests moved through the real workflow (with history), and a few comments. `--reset` only touches requests owned by the demo users.
+
+API docs (Swagger UI): <http://localhost:8000/api/v1/docs/>. Click **Authorize** and paste an access token from `POST /api/v1/auth/token/`.
 
 ## Daily workflow
 
@@ -180,34 +201,37 @@ The venv must be active for any `python` or `pip` command in `backend/`. Angular
 | `DEBUG` | `True` for local development only |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD` | MySQL credentials |
 | `DB_HOST`, `DB_PORT` | MySQL host and port (default `127.0.0.1:3306`) |
+| `DEMO_PASSWORD` | optional; password for `seed_demo_data` users |
+| `LOG_LEVEL` | optional; level for the `apps.*` loggers (default `INFO`) |
+| `LOGIN_THROTTLE_RATE`, `API_USER_THROTTLE_RATE` | optional; defaults `10/min` per IP on login and `1000/hour` per user |
+| `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` | production settings only (comma-separated) |
 
 `.env` is ignored by Git. Keep `.env.example` current with variable names and dummy values.
 
 ## API overview
 
-Base path: `/api/v1/`. Resources use plural nouns and trailing slashes.
+Base path: `/api/v1/`. Resources use plural nouns and trailing slashes. The full contract is [docs/openapi.yaml](docs/openapi.yaml).
 
 ```
-POST   /auth/token/                 login (access and refresh tokens)
+POST   /auth/token/                  login (access + refresh tokens), throttled per IP
 POST   /auth/token/refresh/
-GET    /me/                         current user, role, department
+GET    /me/                          current user, role, department
 GET    /health/
 
-GET    /categories/                 writes are admin-only
-GET    /requests/                   ?status=&category=&priority=&search=&ordering=&page=
+GET    /categories/                  active only (?include_inactive=true for admins); writes admin-only
+GET    /requests/                    ?status=&category=&priority=&needs_my_action=&search=&ordering=&page=
 POST   /requests/
-GET    /requests/{id}/
-PATCH  /requests/{id}/
-DELETE /requests/{id}/              own drafts only
-
-POST   /requests/{id}/submit/       Phase 4
-POST   /requests/{id}/approve/      Phase 4
-POST   /requests/{id}/reject/       Phase 4
-GET    /requests/{id}/history/      Phase 4
-GET    /requests/{id}/comments/     Phase 5 (POST to add)
-POST   /requests/{id}/attachments/  Phase 5
-GET    /dashboard/summary/          Phase 6
-GET    /users/                      Phase 6, admin only
+GET    /requests/{id}/               includes available_actions for the current user
+PATCH  /requests/{id}/               own drafts (admins: any)
+DELETE /requests/{id}/               own drafts (admins: any)
+POST   /requests/{id}/submit/        also start-review/, approve/, reject/ (remarks required), complete/
+GET    /requests/{id}/history/
+GET    /requests/{id}/comments/      POST to add; DELETE .../comments/{comment_id}/
+GET    /requests/{id}/attachments/   POST multipart "file"; DELETE .../attachments/{id}/; GET .../attachments/{id}/download/
+GET    /dashboard/summary/
+GET    /users/                       admin only; POST, PATCH, POST /users/{id}/set-password/ (no DELETE)
+GET    /departments/                 admin only; POST, PATCH, DELETE
+GET    /schema/  /docs/              OpenAPI schema and Swagger UI, DEBUG only
 ```
 
 List responses are paginated as `{count, next, previous, results}`. Errors use one shape: `{detail, errors: {field: [..]}}`.
@@ -246,22 +270,26 @@ mysql -u root -p -e "DROP DATABASE request_tracker; CREATE DATABASE request_trac
 |---|---|---|---|
 | 1. Foundation | Settings split, custom user, roles, health endpoint | | Done |
 | 2. Auth slice | JWT login, `/me/` | Scaffold, PrimeNG, login, interceptor, guard, layout | Done |
-| 3. Core CRUD | Category and Request models, scoped API, filters | List and form pages | Next |
-| 4. Workflow | Submit/approve/reject, StatusHistory | Detail page, action buttons | Planned |
-| 5. Extras | Comments, attachments | Comment box, uploader | Planned |
-| 6. Polish | Dashboard summary, tests, OpenAPI | Dashboard, error and loading states | Planned |
-| 7. Deploy | Gunicorn, Nginx, MySQL, `check --deploy` | `ng build`, static hosting | Planned |
+| 3. Core CRUD | Category and Request models, scoped API, filters | List and form pages | Done |
+| 4. Workflow | Submit/approve/reject/complete, StatusHistory | Detail page, action buttons, timeline | Done |
+| 5. Extras | Comments, attachments | Comment box, uploader with progress | Done |
+| 6. Polish | Dashboard summary, admin API, throttling, OpenAPI, logging | Dashboard, admin pages, error and loading states | Done |
+| 7. Deploy | Gunicorn, Nginx, MySQL, `check --deploy` | `ng build`, static hosting | Next |
 
 ## Testing
 
 ```bash
 cd backend
-python manage.py test
+python manage.py test                                  # 113 tests on a throwaway MySQL test database
+python manage.py makemigrations --check --dry-run
+python manage.py spectacular --file ../docs/openapi.yaml --validate --fail-on-warn
 
 cd ../frontend
-ng test
-ng build
+ng test --watch=false
+ng build                                               # strict template type-checking + bundle budget
 ```
+
+See [docs/05-testing.md](docs/05-testing.md) for how the tests are organized and a manual browser checklist.
 
 ## Troubleshooting
 
@@ -279,6 +307,7 @@ ng build
 | CORS error in the browser | `CORS_ALLOWED_ORIGINS` needs `http://localhost:4200` with no trailing slash; `CorsMiddleware` near the top of `MIDDLEWARE` |
 | PrimeNG components look unstyled | Check `providePrimeNG` with the Aura preset in `app.config.ts` and that `@primeuix/themes` is installed |
 | Port already in use | `python manage.py runserver 8001` or `ng serve --port 4201` |
+| Anything else | see [docs/07-troubleshooting.md](docs/07-troubleshooting.md) |
 
 ## Production notes
 
