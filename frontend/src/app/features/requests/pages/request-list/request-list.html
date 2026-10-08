@@ -82,7 +82,19 @@
 
   <ng-template #body let-item>
     <tr>
-      <td><a class="title-link" [routerLink]="['/requests', item.id]">{{ item.title }}</a></td>
+      <td>
+        <a class="title-link" [routerLink]="['/requests', item.id]">{{ item.title }}</a>
+        @if (item.comments_count || item.attachments_count) {
+          <span class="counts">
+            @if (item.comments_count) {
+              <span [title]="item.comments_count + ' comment(s)'"><i class="pi pi-comment"></i> {{ item.comments_count }}</span>
+            }
+            @if (item.attachments_count) {
+              <span [title]="item.attachments_count + ' attachment(s)'"><i class="pi pi-paperclip"></i> {{ item.attachments_count }}</span>
+            }
+          </span>
+        }
+      </td>
       <td>{{ item.category.name }}</td>
       <td>{{ item.requester.name }}</td>
       <td><app-status-badge [status]="item.status" /></td>

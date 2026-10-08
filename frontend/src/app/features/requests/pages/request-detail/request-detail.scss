@@ -21,6 +21,13 @@
   }
 }
 
+.main-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
 .title-row {
   display: flex;
   align-items: center;

@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Department, User
 from apps.service_requests import services
-from apps.service_requests.models import Category, Request, StatusHistory
+from apps.service_requests.models import Category, Comment, Request, StatusHistory
 
 DEPARTMENTS = ("IT", "HR")
 CATEGORIES = ("Equipment", "Leave", "Document", "Repair")
@@ -40,6 +40,16 @@ PATH_TO = {
     S.COMPLETED: ["submit", "start_review", "approve", "complete"],
 }
 REJECT_REMARKS = "Facilities will handle this in the next scheduled maintenance."
+
+# (request title, author, body) - only on non-draft requests; files are never seeded.
+COMMENTS = [
+    ("Second monitor", "demo_staff", "Any 24-inch model is fine."),
+    ("Vacation leave in December", "demo_reviewer", "Checking the team calendar for coverage."),
+    ("Vacation leave in December", "demo_staff", "Thanks! Juan agreed to cover my tickets."),
+    ("Fix flickering office light", "demo_staff", "It is the light above desk 14."),
+    ("Ergonomic chair", "demo_admin", "Waiting for the supplier quote."),
+    ("Docking station", "demo_reviewer", "USB-C please, for the new laptops."),
+]
 
 # (title, requester, category, target status, priority, days ago)
 # Admin-owned requests stop at submitted: nobody else may review them (admins cannot review their own).
@@ -88,10 +98,12 @@ class Command(BaseCommand):
             categories = {name: Category.objects.get_or_create(name=name)[0] for name in CATEGORIES}
             users, created_users = self._seed_users(departments, new_password, env_password is not None)
             created_requests, transitions = self._seed_requests(users, categories)
+            created_comments = self._seed_comments(users)
 
         self.stdout.write(self.style.SUCCESS(
             f"Departments: {len(departments)}, categories: {len(categories)}, users created: {created_users}, "
-            f"requests created: {created_requests}, workflow transitions: {transitions}"
+            f"requests created: {created_requests}, workflow transitions: {transitions}, "
+            f"comments created: {created_comments}"
         ))
         self.stdout.write("Demo users: " + ", ".join(f"{u} ({USERS[u][2]})" for u in USERS))
         if env_password:
@@ -151,6 +163,16 @@ class Command(BaseCommand):
             # auto_now_add ignores passed values, so backdate with update() for realistic sorting.
             Request.objects.filter(pk=obj.pk).update(created_at=created_at)
         return created_count, transitions
+
+    def _seed_comments(self, users):
+        created_count = 0
+        for title, author, body in COMMENTS:
+            request = Request.objects.filter(title=title, requester__username__in=USERS).first()
+            if request is None or request.status == Request.Status.DRAFT:
+                continue
+            _, created = Comment.objects.get_or_create(request=request, author=users[author], body=body)
+            created_count += created
+        return created_count
 
     @staticmethod
     def _actor_for(action, request, users):

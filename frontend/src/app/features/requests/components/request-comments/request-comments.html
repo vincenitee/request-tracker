@@ -1,0 +1,61 @@
+<p-card [header]="'Comments (' + comments().length + ')'">
+  @if (loading()) {
+    <p class="muted"><i class="pi pi-spin pi-spinner"></i> Loading comments…</p>
+  } @else {
+    @for (comment of comments(); track comment.id) {
+      <article class="comment">
+        <header>
+          <strong>{{ comment.author.name }}</strong>
+          <span class="muted small" [title]="comment.created_at | date: 'medium'">{{ comment.created_at | relativeDate }}</span>
+          @if (comment.can_delete) {
+            <p-button
+              icon="pi pi-trash"
+              [rounded]="true"
+              [text]="true"
+              severity="danger"
+              size="small"
+              class="delete"
+              ariaLabel="Delete comment"
+              (onClick)="confirmDelete(comment, $event)"
+            />
+          }
+        </header>
+        <p class="body">{{ comment.body }}</p>
+      </article>
+    } @empty {
+      <p class="muted empty">No comments yet.</p>
+    }
+  }
+
+  @if (canPost()) {
+    <form class="new-comment" [formGroup]="form" (ngSubmit)="post()">
+      <label for="comment-body" class="sr-only">Add a comment</label>
+      <textarea
+        pTextarea
+        id="comment-body"
+        formControlName="body"
+        rows="3"
+        [autoResize]="true"
+        fluid
+        placeholder="Write a comment"
+        [maxlength]="maxLength"
+        [invalid]="body.invalid && body.touched"
+      ></textarea>
+      <div class="new-comment-footer">
+        @if (body.invalid && body.touched) {
+          <p-message severity="error" size="small" variant="simple">Write something before posting.</p-message>
+        } @else {
+          <span></span>
+        }
+        <span class="muted small counter" [class.near-limit]="length().length > maxLength - 100">
+          {{ length().length }} / {{ maxLength }}
+        </span>
+      </div>
+      <div class="actions">
+        <p-button type="submit" label="Post" icon="pi pi-send" [loading]="posting()" />
+      </div>
+    </form>
+  } @else {
+    <p class="muted hint"><i class="pi pi-info-circle"></i> Comments open once the request is submitted.</p>
+  }
+</p-card>

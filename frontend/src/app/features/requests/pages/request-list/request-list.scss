@@ -46,6 +46,18 @@
   }
 }
 
+.counts {
+  display: inline-flex;
+  gap: 10px;
+  margin-left: 10px;
+  font-size: 0.8rem;
+  color: var(--p-text-muted-color);
+
+  i {
+    font-size: 0.8rem;
+  }
+}
+
 .actions-col {
   width: 9.5rem;
   text-align: right;

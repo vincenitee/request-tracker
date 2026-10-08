@@ -16,6 +16,8 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { StatusBadge } from '../../../../shared/components/status-badge/status-badge';
 import { REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, RequestStatus } from '../../../../shared/models/request-status.model';
 import { RelativeDatePipe } from '../../../../shared/pipes/relative-date-pipe';
+import { RequestAttachments } from '../../components/request-attachments/request-attachments';
+import { RequestComments } from '../../components/request-comments/request-comments';
 import { apiErrorMessage } from '../../../../shared/utils/api-errors';
 import { RequestAction, RequestDetail as RequestDetailModel, StatusHistoryItem } from '../../models/request.model';
 import { RequestsService } from '../../services/requests.service';
@@ -56,6 +58,8 @@ const notBlank = Validators.pattern(/\S/);
     Timeline,
     StatusBadge,
     RelativeDatePipe,
+    RequestAttachments,
+    RequestComments,
   ],
   templateUrl: './request-detail.html',
   styleUrl: './request-detail.scss',

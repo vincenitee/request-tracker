@@ -1,10 +1,18 @@
 <div class="page-header">
-  <p-button icon="pi pi-arrow-left" [text]="true" severity="secondary" routerLink="/requests" ariaLabel="Back to requests" />
+  <p-button
+    icon="pi pi-arrow-left"
+    [text]="true"
+    severity="secondary"
+    routerLink="/requests"
+    ariaLabel="Back to requests"
+  />
   <h1>Request details</h1>
 </div>
 
 @if (loading() && !request()) {
-  <p-card><p class="muted"><i class="pi pi-spin pi-spinner"></i> Loading request…</p></p-card>
+  <p-card
+    ><p class="muted"><i class="pi pi-spin pi-spinner"></i> Loading request…</p></p-card
+  >
 } @else if (notFound()) {
   <p-card>
     <div class="state">
@@ -25,46 +33,57 @@
   </p-card>
 } @else if (request(); as r) {
   <div class="layout">
-    <p-card>
-      <div class="title-row">
-        <h2>{{ r.title }}</h2>
-        <app-status-badge [status]="r.status" />
-      </div>
-
-      <dl class="meta">
-        <dt>Category</dt>
-        <dd>{{ r.category.name }}</dd>
-        <dt>Priority</dt>
-        <dd>{{ priorityLabels[r.priority] }}</dd>
-        <dt>Requester</dt>
-        <dd>{{ r.requester.name }}</dd>
-        <dt>Created</dt>
-        <dd [title]="r.created_at | date: 'medium'">{{ r.created_at | relativeDate }}</dd>
-        <dt>Last updated</dt>
-        <dd [title]="r.updated_at | date: 'medium'">{{ r.updated_at | relativeDate }}</dd>
-      </dl>
-
-      <h3>Description</h3>
-      <p class="description">{{ r.description }}</p>
-
-      @if (r.available_actions.length || canEdit()) {
-        <div class="actions">
-          @if (canEdit()) {
-            <p-button label="Edit" icon="pi pi-pencil" severity="secondary" [outlined]="true" [routerLink]="['/requests', r.id, 'edit']" />
-          }
-          @for (action of r.available_actions; track action) {
-            <p-button
-              [label]="actions[action].label"
-              [icon]="actions[action].icon"
-              [severity]="actions[action].severity"
-              [loading]="acting() === action"
-              [disabled]="acting() !== null"
-              (onClick)="onAction(action, $event)"
-            />
-          }
+    <div class="main-column">
+      <p-card>
+        <div class="title-row">
+          <h2>{{ r.title }}</h2>
+          <app-status-badge [status]="r.status" />
         </div>
-      }
-    </p-card>
+
+        <dl class="meta">
+          <dt>Category</dt>
+          <dd>{{ r.category.name }}</dd>
+          <dt>Priority</dt>
+          <dd>{{ priorityLabels[r.priority] }}</dd>
+          <dt>Requester</dt>
+          <dd>{{ r.requester.name }}</dd>
+          <dt>Created</dt>
+          <dd [title]="r.created_at | date: 'medium'">{{ r.created_at | relativeDate }}</dd>
+          <dt>Last updated</dt>
+          <dd [title]="r.updated_at | date: 'medium'">{{ r.updated_at | relativeDate }}</dd>
+        </dl>
+
+        <h3>Description</h3>
+        <p class="description">{{ r.description }}</p>
+
+        @if (r.available_actions.length || canEdit()) {
+          <div class="actions">
+            @if (canEdit()) {
+              <p-button
+                label="Edit"
+                icon="pi pi-pencil"
+                severity="secondary"
+                [outlined]="true"
+                [routerLink]="['/requests', r.id, 'edit']"
+              />
+            }
+            @for (action of r.available_actions; track action) {
+              <p-button
+                [label]="actions[action].label"
+                [icon]="actions[action].icon"
+                [severity]="actions[action].severity"
+                [loading]="acting() === action"
+                [disabled]="acting() !== null"
+                (onClick)="onAction(action, $event)"
+              />
+            }
+          </div>
+        }
+      </p-card>
+
+      <app-request-attachments [request]="r" />
+      <app-request-comments [requestId]="r.id" [status]="r.status" />
+    </div>
 
     <p-card header="History">
       @if (history().length) {
@@ -77,7 +96,9 @@
               </div>
               <div class="muted small">
                 {{ item.changed_by.name }} ·
-                <span [title]="item.changed_at | date: 'medium'">{{ item.changed_at | relativeDate }}</span>
+                <span [title]="item.changed_at | date: 'medium'">{{
+                  item.changed_at | relativeDate
+                }}</span>
               </div>
               @if (item.remarks) {
                 <blockquote class="remarks">{{ item.remarks }}</blockquote>
@@ -112,11 +133,24 @@
     [invalid]="rejectRemarks.invalid && rejectRemarks.touched"
   ></textarea>
   @if (rejectRemarks.invalid && rejectRemarks.touched) {
-    <p-message severity="error" size="small" variant="simple">Remarks are required to reject a request.</p-message>
+    <p-message severity="error" size="small" variant="simple"
+      >Remarks are required to reject a request.</p-message
+    >
   }
 
   <ng-template #footer>
-    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="rejectVisible.set(false)" />
-    <p-button label="Reject" icon="pi pi-times" severity="danger" [loading]="acting() === 'reject'" (onClick)="confirmReject()" />
+    <p-button
+      label="Cancel"
+      severity="secondary"
+      [outlined]="true"
+      (onClick)="rejectVisible.set(false)"
+    />
+    <p-button
+      label="Reject"
+      icon="pi pi-times"
+      severity="danger"
+      [loading]="acting() === 'reject'"
+      (onClick)="confirmReject()"
+    />
   </ng-template>
 </p-dialog>

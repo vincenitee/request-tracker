@@ -165,3 +165,19 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+
+# Uploaded files (attachments). Never served directly: there is no MEDIA_URL route,
+# files are only reachable through the permission-checked download endpoint.
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Request body limits. Non-file form/JSON data above 1 MB is refused; uploaded files above
+# 2.5 MB are spooled to a temp file instead of memory. The hard cap on total upload size
+# belongs in Nginx (client_max_body_size) in production.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(2.5 * 1024 * 1024)
+
+# Attachment rules (mirrored in frontend/src/app/shared/constants/attachments.ts)
+ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024
+ATTACHMENT_MAX_PER_REQUEST = 5
+ATTACHMENT_ALLOWED_EXTENSIONS = ("pdf", "png", "jpg", "jpeg", "docx", "xlsx")

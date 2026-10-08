@@ -25,6 +25,8 @@ export interface RequestListItem {
   status: RequestStatus;
   priority: RequestPriority;
   created_at: string;
+  comments_count: number;
+  attachments_count: number;
 }
 
 /** Workflow actions; the server lists the ones the current user may take in available_actions. */
@@ -62,4 +64,24 @@ export interface RequestQuery {
   search?: string;
   status?: RequestStatus[]; // repeated ?status= params; empty means any
   category?: number | null;
+}
+
+/** GET /requests/{id}/comments/ item (oldest first) */
+export interface Comment {
+  id: number;
+  author: Requester;
+  body: string;
+  created_at: string;
+  can_delete: boolean;
+}
+
+/** GET /requests/{id}/attachments/ item */
+export interface Attachment {
+  id: number;
+  original_name: string;
+  content_type: string;
+  size: number;
+  uploaded_by: Requester;
+  uploaded_at: string;
+  can_delete: boolean;
 }

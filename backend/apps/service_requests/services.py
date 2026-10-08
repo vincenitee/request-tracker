@@ -3,12 +3,14 @@
 from dataclasses import dataclass
 
 from django.db import transaction
-from django.db.models import ProtectedError, Q, QuerySet
+from django.db.models import Count, IntegerField, OuterRef, ProtectedError, Q, QuerySet, Subquery
+from django.db.models.functions import Coalesce
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.accounts.models import User
 
-from .models import Category, Request, StatusHistory
+from .models import Attachment, Category, Comment, Request, StatusHistory
+from .validators import validate_attachment
 
 Status = Request.Status
 
@@ -24,13 +26,28 @@ def is_reviewer(user) -> bool:
 # --- Requests -------------------------------------------------------------
 
 
+def _count_of(model) -> Coalesce:
+    """Correlated COUNT subquery. Two Count() joins would multiply rows; subqueries do not."""
+    counts = (
+        model.objects.filter(request=OuterRef("pk"))
+        .order_by()
+        .values("request")
+        .annotate(n=Count("pk"))
+        .values("n")
+    )
+    return Coalesce(Subquery(counts, output_field=IntegerField()), 0)
+
+
 def scoped_requests(user) -> QuerySet[Request]:
-    """Requests this user may see.
+    """Requests this user may see, with comments_count and attachments_count annotated.
 
     admin: all. staff: their own. reviewer: their own (any status) plus non-draft
     requests from their department (none from others if they have no department).
     """
-    qs = Request.objects.select_related("category", "requester")
+    qs = Request.objects.select_related("category", "requester").annotate(
+        comments_count=_count_of(Comment),
+        attachments_count=_count_of(Attachment),
+    )
     if is_admin(user):
         return qs
     own = Q(requester=user)
@@ -175,6 +192,82 @@ def perform_transition(request: Request, user, action: str, remarks: str = "") -
 def history_for(request: Request) -> QuerySet[StatusHistory]:
     """Newest first, with the actor joined in (no N+1)."""
     return request.history.select_related("changed_by").order_by("-changed_at", "-id")
+
+
+# --- Comments -------------------------------------------------------------
+
+
+def can_comment(user, request: Request) -> bool:
+    """Anyone who can see the request (already enforced by the scoped queryset), except on drafts."""
+    return request.status != Status.DRAFT
+
+
+def can_delete_comment(user, comment: Comment) -> bool:
+    return comment.author_id == user.id or is_admin(user)
+
+
+def comments_for(request: Request) -> QuerySet[Comment]:
+    return request.comments.select_related("author")
+
+
+def add_comment(request: Request, user, body: str) -> Comment:
+    if not can_comment(user, request):
+        raise ValidationError({"detail": "Comments open once the request is submitted."})
+    return Comment.objects.create(request=request, author=user, body=body)
+
+
+def delete_comment(user, comment: Comment) -> None:
+    if not can_delete_comment(user, comment):
+        raise PermissionDenied("Only the author or an admin can delete this comment.")
+    comment.delete()
+
+
+# --- Attachments ----------------------------------------------------------
+
+
+def can_manage_attachments(user, request: Request) -> bool:
+    """Upload/delete: an admin at any status, otherwise the requester while the request is a draft."""
+    if is_admin(user):
+        return True
+    return request.requester_id == user.id and request.status == Status.DRAFT
+
+
+def attachments_for(request: Request) -> QuerySet[Attachment]:
+    return request.attachments.select_related("uploaded_by")
+
+
+def add_attachment(request: Request, user, file) -> Attachment:
+    """Validate and store one file; the file write and the row INSERT succeed or fail together."""
+    if not can_manage_attachments(user, request):
+        raise PermissionDenied("Only the requester can add files while the request is a draft.")
+
+    attachment = None
+    try:
+        with transaction.atomic():
+            # Lock the request row so two parallel uploads cannot both pass the per-request limit.
+            Request.objects.select_for_update().only("pk").get(pk=request.pk)
+            original_name, content_type = validate_attachment(file, request.attachments.count())
+            attachment = Attachment(
+                request=request,
+                original_name=original_name,
+                content_type=content_type,
+                size=file.size,
+                uploaded_by=user,
+            )
+            attachment.file.save(original_name, file, save=False)  # written to disk under a UUID name
+            attachment.save()
+    except Exception:
+        # INSERT or COMMIT failed after the file was written: remove it so no orphan is left.
+        if attachment is not None and attachment.file:
+            attachment.file.delete(save=False)
+        raise
+    return attachment
+
+
+def delete_attachment(user, attachment: Attachment) -> None:
+    if not can_manage_attachments(user, attachment.request):
+        raise PermissionDenied("Only the requester can remove files while the request is a draft.")
+    attachment.delete()  # the post_delete signal removes the file after commit
 
 
 # --- Categories -----------------------------------------------------------

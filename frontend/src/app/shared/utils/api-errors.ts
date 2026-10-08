@@ -50,3 +50,16 @@ export function applyServerErrors(form: FormGroup, error: unknown): string | nul
   }
   return unmatched.length ? unmatched.join(' ') : null;
 }
+
+/** Like apiErrorMessage, for requests made with responseType 'blob' (the JSON error body arrives as a Blob). */
+export async function blobApiErrorMessage(error: unknown, fallback?: string): Promise<string> {
+  if (error instanceof HttpErrorResponse && error.error instanceof Blob) {
+    try {
+      const body = JSON.parse(await error.error.text());
+      return apiErrorMessage(new HttpErrorResponse({ error: body, status: error.status }), fallback);
+    } catch {
+      // not JSON: fall through to the generic message
+    }
+  }
+  return apiErrorMessage(error, fallback);
+}

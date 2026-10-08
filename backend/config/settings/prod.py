@@ -21,4 +21,4 @@ CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 # SECURE_HSTS_PRELOAD = True
 # STATIC_ROOT = BASE_DIR / "staticfiles"
-# MEDIA_ROOT = BASE_DIR / "media"
+# MEDIA_ROOT: set in base.py; mount it on a persistent volume and back it up with the DB.

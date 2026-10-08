@@ -1,5 +1,9 @@
+import os
+import uuid
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from apps.core.models import TimeStampedModel
 
@@ -69,3 +73,41 @@ class StatusHistory(models.Model):
 
     def __str__(self):
         return f"{self.request_id}: {self.from_status} -> {self.to_status}"
+
+
+class Comment(models.Model):
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="comments")
+    body = models.TextField(max_length=2000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [models.Index(fields=["request", "created_at"])]
+
+    def __str__(self):
+        return f"Comment {self.pk} on request {self.request_id}"
+
+
+def attachment_upload_to(instance, filename):
+    """Store under a random name (keeping only the validated extension), never the user's filename."""
+    ext = os.path.splitext(filename)[1].lower()
+    return f"attachments/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{ext}"
+
+
+class Attachment(models.Model):
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to=attachment_upload_to, max_length=255)
+    original_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    size = models.PositiveIntegerField()
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="attachments"
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["uploaded_at", "id"]
+
+    def __str__(self):
+        return self.original_name

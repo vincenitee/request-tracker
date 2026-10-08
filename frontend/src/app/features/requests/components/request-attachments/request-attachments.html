@@ -1,0 +1,68 @@
+<p-card [header]="'Attachments (' + attachments().length + ')'">
+  @if (loading()) {
+    <p class="muted"><i class="pi pi-spin pi-spinner"></i> Loading attachments…</p>
+  } @else {
+    <ul class="files">
+      @for (file of attachments(); track file.id) {
+        <li class="file">
+          <i [class]="icon(file) + ' file-icon'" aria-hidden="true"></i>
+          <div class="file-info">
+            <span class="file-name" [title]="file.original_name">{{ file.original_name }}</span>
+            <span class="muted small">
+              {{ file.size | fileSize }} · {{ file.uploaded_by.name }} ·
+              <span [title]="file.uploaded_at | date: 'medium'">{{ file.uploaded_at | relativeDate }}</span>
+            </span>
+          </div>
+          <p-button
+            icon="pi pi-download"
+            [rounded]="true"
+            [text]="true"
+            severity="secondary"
+            [loading]="downloading() === file.id"
+            [ariaLabel]="'Download ' + file.original_name"
+            (onClick)="download(file)"
+          />
+          @if (file.can_delete) {
+            <p-button
+              icon="pi pi-trash"
+              [rounded]="true"
+              [text]="true"
+              severity="danger"
+              [ariaLabel]="'Delete ' + file.original_name"
+              (onClick)="confirmDelete(file, $event)"
+            />
+          }
+        </li>
+      } @empty {
+        <li class="muted empty">No files attached.</li>
+      }
+    </ul>
+  }
+
+  @if (canUpload()) {
+    <div class="upload">
+      @if (uploading(); as name) {
+        <div class="progress">
+          <span class="small">Uploading {{ name }}…</span>
+          <p-progressbar [value]="progress()" />
+        </div>
+      }
+      <div class="upload-row">
+        <p-fileupload
+          #uploader
+          mode="basic"
+          [auto]="true"
+          [customUpload]="true"
+          [multiple]="true"
+          chooseLabel="Add files"
+          chooseIcon="pi pi-paperclip"
+          [disabled]="uploading() !== null || full()"
+          (uploadHandler)="onFilesPicked($event, uploader)"
+        />
+        <span class="muted small">{{ full() ? 'Maximum of ' + maxFiles + ' files reached.' : limitsText }}</span>
+      </div>
+    </div>
+  } @else if (isRequester()) {
+    <p class="muted hint"><i class="pi pi-lock"></i> Files can only be added or removed while the request is a draft.</p>
+  }
+</p-card>

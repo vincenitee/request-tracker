@@ -1,10 +1,10 @@
 from django.contrib import admin
 
-from .models import Category, Request, StatusHistory
+from .models import Attachment, Category, Comment, Request, StatusHistory
 
 
 class ReadOnlyAdminMixin:
-    """History is written by the workflow service only, never by hand."""
+    """Rows written by the API services only (history, comments, attachments), never by hand."""
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -49,3 +49,19 @@ class StatusHistoryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_filter = ("to_status",)
     search_fields = ("request__title", "changed_by__username", "remarks")
     list_select_related = ("request", "changed_by")
+
+
+@admin.register(Comment)
+class CommentAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("request", "author", "created_at")
+    search_fields = ("body", "author__username", "request__title")
+    list_select_related = ("request", "author")
+
+
+@admin.register(Attachment)
+class AttachmentAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    # Read-only: uploads go through the API so validation, limits and permissions always apply.
+    list_display = ("original_name", "request", "content_type", "size", "uploaded_by", "uploaded_at")
+    search_fields = ("original_name", "request__title", "uploaded_by__username")
+    list_select_related = ("request", "uploaded_by")
+    exclude = ("file",)  # the admin would render a public /media/ link, which does not exist
