@@ -1,0 +1,22 @@
+<p-toolbar>
+  <ng-template #start>
+    <nav class="nav">
+      <a class="brand" routerLink="/dashboard"><i class="pi pi-inbox"></i> Request Tracker</a>
+      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+    </nav>
+  </ng-template>
+
+  <ng-template #end>
+    @if (auth.currentUser(); as user) {
+      <div class="user">
+        <span>{{ user.first_name || user.username }}</span>
+        <p-tag [value]="user.role" severity="secondary" />
+        <p-button label="Logout" icon="pi pi-sign-out" severity="secondary" [text]="true" (onClick)="logout()" />
+      </div>
+    }
+  </ng-template>
+</p-toolbar>
+
+<main class="content">
+  <router-outlet />
+</main>

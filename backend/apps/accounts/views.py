@@ -1,3 +1,12 @@
-from django.shortcuts import render
+from rest_framework.generics import RetrieveAPIView
 
-# Create your views here.
+from .serializers import MeSerializer
+
+
+class MeView(RetrieveAPIView):
+    """The logged-in user. Uses the default IsAuthenticated permission."""
+
+    serializer_class = MeSerializer
+
+    def get_object(self):
+        return self.request.user

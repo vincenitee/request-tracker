@@ -1,0 +1,17 @@
+@if (user(); as u) {
+  <p-card [header]="'Welcome, ' + (u.first_name || u.username)" subheader="Request counts and recent requests arrive in Phase 6.">
+    <dl class="details">
+      <dt>Name</dt>
+      <dd>{{ u.first_name }} {{ u.last_name }}</dd>
+
+      <dt>Username</dt>
+      <dd>{{ u.username }}</dd>
+
+      <dt>Role</dt>
+      <dd><p-tag [value]="u.role" /></dd>
+
+      <dt>Department</dt>
+      <dd>{{ u.department?.name ?? 'None' }}</dd>
+    </dl>
+  </p-card>
+}

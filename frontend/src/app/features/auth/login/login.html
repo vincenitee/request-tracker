@@ -1,0 +1,30 @@
+<main class="login-page">
+  <p-card header="Request Tracker" subheader="Sign in to continue">
+    <form class="fields" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="username">Username</label>
+        <input pInputText id="username" formControlName="username" autocomplete="username" fluid />
+        @if (form.controls.username.touched && form.controls.username.hasError('required')) {
+          <p-message severity="error" size="small" variant="simple">Username is required.</p-message>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <p-password
+          inputId="password"
+          formControlName="password"
+          [feedback]="false"
+          [toggleMask]="true"
+          autocomplete="current-password"
+          fluid
+        />
+        @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+          <p-message severity="error" size="small" variant="simple">Password is required.</p-message>
+        }
+      </div>
+
+      <p-button type="submit" label="Sign in" icon="pi pi-sign-in" [loading]="loading()" fluid />
+    </form>
+  </p-card>
+</main>
