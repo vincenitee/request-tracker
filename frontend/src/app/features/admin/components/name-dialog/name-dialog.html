@@ -1,0 +1,17 @@
+<p-dialog [header]="header()" [(visible)]="visible" [modal]="true" [draggable]="false" [style]="{ width: '28rem' }" [breakpoints]="{ '640px': '95vw' }">
+  <form id="name-dialog-form" class="field" (submit)="$event.preventDefault(); submit()">
+    <label for="name-dialog-input">Name</label>
+    <input pInputText id="name-dialog-input" [formControl]="name" maxlength="100" fluid [invalid]="(name.invalid && name.touched) || !!serverError()" />
+    @if (name.invalid && name.touched) {
+      <p-message severity="error" size="small" variant="simple">
+        {{ name.hasError('maxlength') ? 'Use 100 characters or fewer.' : 'Name is required.' }}
+      </p-message>
+    } @else if (serverError(); as message) {
+      <p-message severity="error" size="small" variant="simple">{{ message }}</p-message>
+    }
+  </form>
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="visible.set(false)" />
+    <p-button label="Save" icon="pi pi-check" [loading]="saving()" (onClick)="submit()" />
+  </ng-template>
+</p-dialog>

@@ -19,6 +19,7 @@ import { RelativeDatePipe } from '../../../../shared/pipes/relative-date-pipe';
 import { RequestAttachments } from '../../components/request-attachments/request-attachments';
 import { RequestComments } from '../../components/request-comments/request-comments';
 import { apiErrorMessage } from '../../../../shared/utils/api-errors';
+import { notifyError } from '../../../../shared/utils/notify';
 import { RequestAction, RequestDetail as RequestDetailModel, StatusHistoryItem } from '../../models/request.model';
 import { RequestsService } from '../../services/requests.service';
 
@@ -163,7 +164,7 @@ export class RequestDetail implements OnInit {
       },
       error: (error) => {
         this.acting.set(null);
-        this.messages.add({ severity: 'error', summary: `${ACTIONS[action].label} failed`, detail: apiErrorMessage(error) });
+        notifyError(this.messages, `${ACTIONS[action].label} failed`, error);
         // The request may have changed under us (e.g. someone else acted first): refresh what is allowed.
         if (action !== 'reject' || (error as HttpErrorResponse).status !== 400) {
           this.rejectVisible.set(false);

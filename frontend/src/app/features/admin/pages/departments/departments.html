@@ -1,0 +1,46 @@
+<app-page-header title="Departments" subtitle="Reviewers only see requests from their own department.">
+  <p-button label="New department" icon="pi pi-plus" (onClick)="openCreate()" />
+</app-page-header>
+
+<p-card>
+  @if (loading() && !departments().length) {
+    <app-table-skeleton [rows]="4" [cols]="3" />
+  } @else if (loadFailed()) {
+    <app-empty-state icon="pi-exclamation-triangle" title="Could not load departments">
+      <p-button label="Try again" icon="pi pi-refresh" (onClick)="load()" />
+    </app-empty-state>
+  } @else if (!departments().length) {
+    <app-empty-state icon="pi-building" title="No departments yet" message="Create one, then assign users to it.">
+      <p-button label="New department" icon="pi pi-plus" (onClick)="openCreate()" />
+    </app-empty-state>
+  } @else {
+    <p-table [value]="departments()" dataKey="id" [loading]="loading()">
+      <ng-template #header>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Users</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr>
+      </ng-template>
+      <ng-template #body let-department>
+        <tr>
+          <td>{{ department.name }}</td>
+          <td>{{ department.user_count }}</td>
+          <td class="actions-col">
+            <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="secondary" [ariaLabel]="'Rename ' + department.name" (onClick)="openEdit(department)" />
+            <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger" [ariaLabel]="'Delete ' + department.name" (onClick)="confirmDelete(department, $event)" />
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+</p-card>
+
+<app-name-dialog
+  [(visible)]="dialogOpen"
+  [header]="editing() ? 'Rename department' : 'New department'"
+  [initialName]="editing()?.name ?? ''"
+  [saving]="saving()"
+  [serverError]="nameError()"
+  (save)="save($event)"
+/>

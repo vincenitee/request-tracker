@@ -1,5 +1,6 @@
 """Business rules for requests and categories. Views and permissions call these; they hold no rules themselves."""
 
+import logging
 from dataclasses import dataclass
 
 from django.db import transaction
@@ -7,20 +8,15 @@ from django.db.models import Count, IntegerField, OuterRef, ProtectedError, Q, Q
 from django.db.models.functions import Coalesce
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.accounts.models import User
+from apps.accounts.services import is_admin, is_reviewer
 
 from .models import Attachment, Category, Comment, Request, StatusHistory
 from .validators import validate_attachment
 
 Status = Request.Status
+workflow_log = logging.getLogger("apps.service_requests.workflow")
 
-
-def is_admin(user) -> bool:
-    return user.is_authenticated and user.role == User.Role.ADMIN
-
-
-def is_reviewer(user) -> bool:
-    return user.is_authenticated and user.role == User.Role.REVIEWER
+# is_admin / is_reviewer live in apps.accounts.services (imported above) and are re-exported here.
 
 
 # --- Requests -------------------------------------------------------------
@@ -38,23 +34,63 @@ def _count_of(model) -> Coalesce:
     return Coalesce(Subquery(counts, output_field=IntegerField()), 0)
 
 
-def scoped_requests(user) -> QuerySet[Request]:
-    """Requests this user may see, with comments_count and attachments_count annotated.
-
-    admin: all. staff: their own. reviewer: their own (any status) plus non-draft
-    requests from their department (none from others if they have no department).
-    """
-    qs = Request.objects.select_related("category", "requester").annotate(
-        comments_count=_count_of(Comment),
-        attachments_count=_count_of(Attachment),
-    )
+def _visible_q(user) -> Q:
+    """admin: all. staff: their own. reviewer: their own (any status) plus non-draft
+    requests from their department (none from others if they have no department)."""
     if is_admin(user):
-        return qs
+        return Q()
     own = Q(requester=user)
     if is_reviewer(user) and user.department_id is not None:
-        department = Q(requester__department_id=user.department_id) & ~Q(status=Status.DRAFT)
-        return qs.filter(own | department)
-    return qs.filter(own)
+        return own | (Q(requester__department_id=user.department_id) & ~Q(status=Status.DRAFT))
+    return own
+
+
+def visible_requests(user) -> QuerySet[Request]:
+    """Plain scoped queryset (no joins or annotations), for aggregates."""
+    return Request.objects.filter(_visible_q(user))
+
+
+def scoped_requests(user) -> QuerySet[Request]:
+    """Requests this user may see, with comments_count and attachments_count annotated."""
+    return (
+        visible_requests(user)
+        .select_related("category", "requester")
+        .annotate(comments_count=_count_of(Comment), attachments_count=_count_of(Attachment))
+    )
+
+
+REVIEWABLE = (Status.SUBMITTED, Status.IN_REVIEW)
+
+
+def needs_my_action_q(user) -> Q:
+    """What waits on this user. Used by the dashboard count and the ?needs_my_action=true list filter.
+
+    staff: own drafts. reviewer: submitted/in-review requests from their department that they did
+    not create. admin: all submitted/in-review requests they did not create.
+    """
+    if is_admin(user):
+        return Q(status__in=REVIEWABLE) & ~Q(requester=user)
+    if is_reviewer(user):
+        if user.department_id is None:
+            return Q(pk__in=[])
+        return Q(status__in=REVIEWABLE, requester__department_id=user.department_id) & ~Q(requester=user)
+    return Q(requester=user, status=Status.DRAFT)
+
+
+def dashboard_summary(user) -> dict:
+    """Counts in ONE aggregate query (conditional COUNTs) plus one query for the recent list."""
+    aggregates = {"total": Count("pk"), "needs_my_action": Count("pk", filter=needs_my_action_q(user))}
+    aggregates |= {f"status__{value}": Count("pk", filter=Q(status=value)) for value in Status.values}
+    aggregates |= {f"priority__{value}": Count("pk", filter=Q(priority=value)) for value in Request.Priority.values}
+    counts = visible_requests(user).order_by().aggregate(**aggregates)
+
+    return {
+        "total": counts["total"],
+        "by_status": {value: counts[f"status__{value}"] for value in Status.values},
+        "by_priority": {value: counts[f"priority__{value}"] for value in Request.Priority.values},
+        "needs_my_action": counts["needs_my_action"],
+        "recent": list(scoped_requests(user).order_by("-created_at", "-id")[:5]),
+    }
 
 
 def can_modify(user, request: Request) -> bool:
@@ -186,6 +222,13 @@ def perform_transition(request: Request, user, action: str, remarks: str = "") -
             changed_by=user,
             remarks=remarks,
         )
+        # Logged only once committed, so a rolled-back transition is never reported as done.
+        transaction.on_commit(
+            lambda: workflow_log.info(
+                "transition request_id=%s action=%s from=%s to=%s user_id=%s",
+                locked.pk, action, from_status, transition.target, user.pk,
+            )
+        )
     return locked
 
 
@@ -273,10 +316,10 @@ def delete_attachment(user, attachment: Attachment) -> None:
 # --- Categories -----------------------------------------------------------
 
 
-def visible_categories(user) -> QuerySet[Category]:
-    """Admins manage every category; everyone else only picks from active ones."""
+def visible_categories(user, include_inactive: bool = False) -> QuerySet[Category]:
+    """Active categories for everyone; admins may also ask for inactive ones."""
     qs = Category.objects.all()
-    return qs if is_admin(user) else qs.filter(is_active=True)
+    return qs if include_inactive and is_admin(user) else qs.filter(is_active=True)
 
 
 def delete_category(category: Category) -> None:

@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { Button } from 'primeng/button';
 import { IconField } from 'primeng/iconfield';
@@ -14,7 +14,10 @@ import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { catchError, debounceTime, distinctUntilChanged, map, of, Subject, switchMap, tap } from 'rxjs';
 
 import { AuthService } from '../../../../core/auth/auth.service';
+import { EmptyState } from '../../../../shared/components/empty-state/empty-state';
+import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatusBadge } from '../../../../shared/components/status-badge/status-badge';
+import { TableSkeleton } from '../../../../shared/components/table-skeleton/table-skeleton';
 import {
   REQUEST_PRIORITY_LABELS,
   REQUEST_STATUS_OPTIONS,
@@ -22,8 +25,9 @@ import {
   RequestStatus,
 } from '../../../../shared/models/request-status.model';
 import { RelativeDatePipe } from '../../../../shared/pipes/relative-date-pipe';
-import { apiErrorMessage } from '../../../../shared/utils/api-errors';
-import { Category, RequestListItem, RequestQuery } from '../../models/request.model';
+import { notifyError } from '../../../../shared/utils/notify';
+import { Category } from '../../../../shared/models/category.model';
+import { RequestListItem, RequestQuery } from '../../models/request.model';
 import { CategoriesService } from '../../services/categories.service';
 import { RequestsService } from '../../services/requests.service';
 
@@ -50,6 +54,9 @@ const PRESET_STATUSES: Record<Preset, RequestStatus[]> = {
     SelectButton,
     StatusBadge,
     RelativeDatePipe,
+    EmptyState,
+    PageHeader,
+    TableSkeleton,
   ],
   templateUrl: './request-list.html',
   styleUrl: './request-list.scss',
@@ -60,6 +67,7 @@ export class RequestList implements OnInit {
   private readonly confirmation = inject(ConfirmationService);
   private readonly messages = inject(MessageService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
   private readonly currentUser = inject(AuthService).currentUser;
 
   /** Quick tabs for the people who review requests. */
@@ -82,12 +90,30 @@ export class RequestList implements OnInit {
   protected readonly search = signal('');
   protected readonly status = signal<RequestStatus | null>(null);
   protected readonly category = signal<number | null>(null);
+  /** ?needs_my_action=true from the dashboard: the server applies the same rule as the dashboard count. */
+  protected readonly needsMyAction = signal(false);
+  /** True until the first page arrives: show skeleton rows instead of an empty table. */
+  protected readonly firstLoad = signal(true);
+  protected readonly hasFilters = computed(
+    () => !!(this.search() || this.status() || this.category() || this.needsMyAction() || this.preset() !== 'all'),
+  );
   private ordering = '-created_at';
 
   private readonly reload$ = new Subject<void>();
   private readonly searchInput$ = new Subject<string>();
 
   ngOnInit(): void {
+    // Filters can arrive in the URL (dashboard cards and call-out link here).
+    const params = this.route.snapshot.queryParamMap;
+    const status = params.get('status') as RequestStatus | null;
+    if (status && this.statusOptions.some((o) => o.value === status)) {
+      this.status.set(status);
+    }
+    if (params.get('preset') === 'needs_review') {
+      this.preset.set('needs_review');
+    }
+    this.needsMyAction.set(params.get('needs_my_action') === 'true');
+
     // switchMap cancels an in-flight request when a newer one starts (fast typing, quick paging).
     this.reload$
       .pipe(
@@ -96,7 +122,7 @@ export class RequestList implements OnInit {
         switchMap((query) =>
           this.requestsService.list(query).pipe(
             catchError((error) => {
-              this.messages.add({ severity: 'error', summary: 'Could not load requests', detail: apiErrorMessage(error) });
+              notifyError(this.messages, 'Could not load requests', error);
               return of({ count: 0, next: null, previous: null, results: [] });
             }),
           ),
@@ -107,6 +133,7 @@ export class RequestList implements OnInit {
         this.items.set(page.results);
         this.total.set(page.count);
         this.loading.set(false);
+        this.firstLoad.set(false);
       });
 
     this.searchInput$
@@ -152,6 +179,11 @@ export class RequestList implements OnInit {
     this.resetToFirstPage();
   }
 
+  protected clearNeedsMyAction(): void {
+    this.needsMyAction.set(false);
+    this.resetToFirstPage();
+  }
+
   protected onCategoryChange(value: number | null): void {
     this.category.set(value);
     this.resetToFirstPage();
@@ -187,8 +219,7 @@ export class RequestList implements OnInit {
         }
         this.reload$.next();
       },
-      error: (error) =>
-        this.messages.add({ severity: 'error', summary: 'Delete failed', detail: apiErrorMessage(error) }),
+      error: (error) => notifyError(this.messages, 'Delete failed', error),
     });
   }
 
@@ -204,6 +235,7 @@ export class RequestList implements OnInit {
       search: this.search(),
       status: this.status() ? [this.status()!] : PRESET_STATUSES[this.preset()],
       category: this.category(),
+      needsMyAction: this.needsMyAction(),
     };
   }
 }

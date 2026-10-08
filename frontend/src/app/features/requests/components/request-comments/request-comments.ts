@@ -11,7 +11,7 @@ import { Textarea } from 'primeng/textarea';
 import { COMMENT_MAX_LENGTH } from '../../../../shared/constants/attachments';
 import { RequestStatus } from '../../../../shared/models/request-status.model';
 import { RelativeDatePipe } from '../../../../shared/pipes/relative-date-pipe';
-import { apiErrorMessage } from '../../../../shared/utils/api-errors';
+import { notifyError } from '../../../../shared/utils/notify';
 import { Comment } from '../../models/request.model';
 import { CommentsService } from '../../services/comments.service';
 
@@ -52,7 +52,7 @@ export class RequestComments implements OnInit {
       },
       error: (error) => {
         this.loading.set(false);
-        this.messages.add({ severity: 'error', summary: 'Could not load comments', detail: apiErrorMessage(error) });
+        notifyError(this.messages, 'Could not load comments', error);
       },
     });
   }
@@ -71,7 +71,7 @@ export class RequestComments implements OnInit {
       },
       error: (error) => {
         this.posting.set(false);
-        this.messages.add({ severity: 'error', summary: 'Comment not posted', detail: apiErrorMessage(error) });
+        notifyError(this.messages, 'Comment not posted', error);
       },
     });
   }
@@ -88,7 +88,7 @@ export class RequestComments implements OnInit {
         this.commentsService.delete(this.requestId(), comment.id).subscribe({
           next: () => this.comments.update((list) => list.filter((c) => c.id !== comment.id)),
           error: (error) =>
-            this.messages.add({ severity: 'error', summary: 'Could not delete comment', detail: apiErrorMessage(error) }),
+            notifyError(this.messages, 'Could not delete comment', error),
         }),
     });
   }

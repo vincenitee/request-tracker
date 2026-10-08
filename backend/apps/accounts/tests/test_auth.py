@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
@@ -17,6 +18,9 @@ class AuthTests(APITestCase):
             role=User.Role.REVIEWER,
             department=cls.department,
         )
+
+    def setUp(self):
+        cache.clear()  # these tests log in repeatedly; keep them clear of the login throttle
 
     def login(self, password=None):
         return self.client.post(

@@ -1,17 +1,114 @@
-@if (user(); as u) {
-  <p-card [header]="'Welcome, ' + (u.first_name || u.username)" subheader="Request counts and recent requests arrive in Phase 6.">
-    <dl class="details">
-      <dt>Name</dt>
-      <dd>{{ u.first_name }} {{ u.last_name }}</dd>
+<app-page-header [title]="wording().scope" [subtitle]="'Welcome back, ' + (user()?.first_name || user()?.username) + '. ' + wording().subtitle">
+  <p-button label="New request" icon="pi pi-plus" routerLink="/requests/new" />
+</app-page-header>
 
-      <dt>Username</dt>
-      <dd>{{ u.username }}</dd>
-
-      <dt>Role</dt>
-      <dd><p-tag [value]="u.role" /></dd>
-
-      <dt>Department</dt>
-      <dd>{{ u.department?.name ?? 'None' }}</dd>
-    </dl>
+@if (loading() && !summary()) {
+  <!-- Skeleton: same layout as the real content -->
+  <div class="callout-skeleton"><p-skeleton height="4.5rem" /></div>
+  <div class="cards">
+    @for (i of skeletonCards; track i) {
+      <p-skeleton height="5.5rem" />
+    }
+  </div>
+  <div class="panels">
+    <p-skeleton height="16rem" />
+    <p-skeleton height="16rem" />
+  </div>
+} @else if (error(); as message) {
+  <p-card>
+    <app-empty-state icon="pi-exclamation-triangle" title="Could not load the dashboard" [message]="message">
+      <p-button label="Try again" icon="pi pi-refresh" (onClick)="load()" />
+    </app-empty-state>
   </p-card>
+} @else if (summary(); as s) {
+  @if (s.needs_my_action > 0) {
+    <a class="callout" routerLink="/requests" [queryParams]="{ needs_my_action: true }">
+      <i class="pi pi-bell" aria-hidden="true"></i>
+      <span>
+        <strong>{{ wording().action(s.needs_my_action) }}</strong>
+        <span class="muted small">{{ wording().actionHint }}</span>
+      </span>
+      <i class="pi pi-arrow-right" aria-hidden="true"></i>
+    </a>
+  } @else {
+    <div class="callout calm" role="status">
+      <i class="pi pi-check-circle" aria-hidden="true"></i>
+      <span><strong>Nothing needs your action right now.</strong></span>
+    </div>
+  }
+
+  <nav class="cards" aria-label="Requests by status">
+    <a class="card total" routerLink="/requests">
+      <span class="card-label">Total</span>
+      <span class="card-count">{{ s.total }}</span>
+    </a>
+    <a class="card" routerLink="/requests" [queryParams]="{ needs_my_action: true }">
+      <span class="card-label">Needs my action</span>
+      <span class="card-count">{{ s.needs_my_action }}</span>
+    </a>
+    @for (status of statuses; track status) {
+      <a
+        class="card"
+        routerLink="/requests"
+        [queryParams]="{ status: status }"
+        [style.border-top-color]="color(status)"
+        [attr.aria-label]="label(status) + ': ' + s.by_status[status] + ' requests'"
+      >
+        <app-status-badge [status]="status" />
+        <span class="card-count">{{ s.by_status[status] }}</span>
+      </a>
+    }
+  </nav>
+
+  @if (s.total === 0) {
+    <p-card>
+      <app-empty-state icon="pi-inbox" title="No requests yet" message="Requests you can see will show up here.">
+        <p-button label="Create a request" icon="pi pi-plus" routerLink="/requests/new" />
+      </app-empty-state>
+    </p-card>
+  } @else {
+    <div class="panels">
+      <p-card header="Status distribution">
+        <ul class="bars">
+          @for (status of statuses; track status) {
+            <li>
+              <div class="bar-label">
+                <span>{{ label(status) }}</span>
+                <span class="muted">{{ s.by_status[status] }} · {{ percent(s.by_status[status]) }}%</span>
+              </div>
+              <p-progressbar
+                [value]="percent(s.by_status[status])"
+                [showValue]="false"
+                [color]="color(status)"
+                [attr.aria-label]="label(status) + ' ' + percent(s.by_status[status]) + ' percent'"
+              />
+            </li>
+          }
+        </ul>
+      </p-card>
+
+      <p-card header="Recent requests">
+        <p-table [value]="s.recent" dataKey="id" size="small">
+          <ng-template #header>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-item>
+            <tr>
+              <td>
+                <a class="title-link" [routerLink]="['/requests', item.id]">{{ item.title }}</a>
+                <div class="muted small">{{ item.requester.name }} · {{ item.category.name }}</div>
+              </td>
+              <td><app-status-badge [status]="item.status" /></td>
+              <td class="nowrap" [title]="item.created_at | date: 'medium'">{{ item.created_at | relativeDate }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+        <div class="see-all"><a routerLink="/requests">See all requests <i class="pi pi-arrow-right" aria-hidden="true"></i></a></div>
+      </p-card>
+    </div>
+  }
 }

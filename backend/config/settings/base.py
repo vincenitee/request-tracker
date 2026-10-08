@@ -154,6 +154,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Rates come from API_USER_THROTTLE_RATE / LOGIN_THROTTLE_RATE below (read per request).
+    "DEFAULT_THROTTLE_CLASSES": ["apps.core.throttling.ApiUserRateThrottle"],
     # One error shape for the whole API: {"detail": ..., "errors": {field: [..]}}
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
 }
@@ -181,3 +183,49 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = int(2.5 * 1024 * 1024)
 ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024
 ATTACHMENT_MAX_PER_REQUEST = 5
 ATTACHMENT_ALLOWED_EXTENSIONS = ("pdf", "png", "jpg", "jpeg", "docx", "xlsx")
+
+
+# Throttling (429). Counters live in Django's cache: the default per-process LocMemCache is fine
+# for dev; production with several workers needs a shared cache (Redis) - Phase 7.
+LOGIN_THROTTLE_RATE = env("LOGIN_THROTTLE_RATE", default="10/min")  # per IP, on POST /auth/token/
+API_USER_THROTTLE_RATE = env("API_USER_THROTTLE_RATE", default="1000/hour")  # per user (per IP if anonymous)
+
+
+# OpenAPI (drf-spectacular). Schema and Swagger UI are served only when DEBUG is True.
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Request Tracker API",
+    "DESCRIPTION": (
+        "Internal request workflow: staff submit requests, reviewers approve or reject, "
+        "admins manage users, departments and categories. Authenticate with "
+        "POST /api/v1/auth/token/ and send `Authorization: Bearer <access>`."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,  # separate request/response components (needed for file uploads)
+    "SCHEMA_PATH_PREFIX": r"/api/v1",
+    "SWAGGER_UI_SETTINGS": {"persistAuthorization": True},
+    "ENUM_NAME_OVERRIDES": {
+        "RequestStatusEnum": "apps.service_requests.models.Request.Status",
+        "RequestPriorityEnum": "apps.service_requests.models.Request.Priority",
+        "UserRoleEnum": "apps.accounts.models.User.Role",
+    },
+}
+
+
+# Logging: one line per event in key=value form. Never log passwords, tokens or request bodies.
+LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "kv": {"format": 'ts=%(asctime)s level=%(levelname)s logger=%(name)s msg="%(message)s"'},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "kv"},
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "apps": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
+}

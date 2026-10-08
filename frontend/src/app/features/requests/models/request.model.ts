@@ -1,11 +1,5 @@
 import { RequestPriority, RequestStatus } from '../../../shared/models/request-status.model';
 
-export interface Category {
-  id: number;
-  name: string;
-  is_active: boolean;
-}
-
 export interface CategorySummary {
   id: number;
   name: string;
@@ -64,6 +58,7 @@ export interface RequestQuery {
   search?: string;
   status?: RequestStatus[]; // repeated ?status= params; empty means any
   category?: number | null;
+  needsMyAction?: boolean; // ?needs_my_action=true
 }
 
 /** GET /requests/{id}/comments/ item (oldest first) */

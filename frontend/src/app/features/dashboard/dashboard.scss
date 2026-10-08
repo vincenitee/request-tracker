@@ -1,20 +1,142 @@
-p-card {
-  max-width: 520px;
-}
-
-.details {
-  display: grid;
-  grid-template-columns: max-content 1fr;
+.callout {
+  display: flex;
   align-items: center;
-  gap: 10px 24px;
-  margin: 0;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: var(--p-orange-50);
+  border: 1px solid var(--p-orange-200);
+  color: var(--p-text-color);
+  text-decoration: none;
+
+  > span {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .pi-bell {
+    color: var(--p-orange-600);
+    font-size: 1.25rem;
+  }
+
+  &:hover strong {
+    text-decoration: underline;
+  }
+
+  &.calm {
+    background: var(--p-green-50);
+    border-color: var(--p-green-200);
+
+    .pi-check-circle {
+      color: var(--p-green-600);
+      font-size: 1.25rem;
+    }
+  }
 }
 
-dt {
+.callout-skeleton {
+  margin-bottom: 16px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 5.5rem;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border-top: 4px solid var(--p-primary-color);
+  background: var(--p-content-background);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  color: var(--p-text-color);
+  text-decoration: none;
+  transition: box-shadow 0.15s;
+
+  &:hover,
+  &:focus-visible {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+  }
+
+  &.total {
+    border-top-color: var(--p-surface-900);
+  }
+}
+
+.card-label {
   font-weight: 600;
   color: var(--p-text-muted-color);
 }
 
-dd {
+.card-count {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.title-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--p-primary-color);
+    text-decoration: underline;
+  }
+}
+
+.see-all {
+  margin-top: 12px;
+  text-align: right;
+
+  a {
+    color: var(--p-primary-color);
+    text-decoration: none;
+  }
+}
+
+.muted {
+  color: var(--p-text-muted-color);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.nowrap {
+  white-space: nowrap;
 }

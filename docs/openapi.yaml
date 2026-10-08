@@ -1,0 +1,1993 @@
+openapi: 3.0.3
+info:
+  title: Request Tracker API
+  version: 1.0.0
+  description: 'Internal request workflow: staff submit requests, reviewers approve
+    or reject, admins manage users, departments and categories. Authenticate with
+    POST /api/v1/auth/token/ and send `Authorization: Bearer <access>`.'
+paths:
+  /api/v1/auth/token/:
+    post:
+      operationId: auth_token_create
+      description: Login, limited per client IP (settings.LOGIN_THROTTLE_RATE) against
+        password guessing.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/categories/:
+    get:
+      operationId: categories_list
+      parameters:
+      - in: query
+        name: include_inactive
+        schema:
+          type: boolean
+        description: 'Admins only: also list inactive categories.'
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+          description: ''
+    post:
+      operationId: categories_create
+      parameters:
+      - in: query
+        name: include_inactive
+        schema:
+          type: boolean
+        description: 'Admins only: also list inactive categories.'
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/categories/{id}/:
+    get:
+      operationId: categories_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this category.
+        required: true
+      - in: query
+        name: include_inactive
+        schema:
+          type: boolean
+        description: 'Admins only: also list inactive categories.'
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+    patch:
+      operationId: categories_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this category.
+        required: true
+      - in: query
+        name: include_inactive
+        schema:
+          type: boolean
+        description: 'Admins only: also list inactive categories.'
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+    delete:
+      operationId: categories_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this category.
+        required: true
+      - in: query
+        name: include_inactive
+        schema:
+          type: boolean
+        description: 'Admins only: also list inactive categories.'
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/dashboard/summary/:
+    get:
+      operationId: dashboard_summary_retrieve
+      description: Counts for the current user's scope (same visibility rules as GET
+        /requests/).
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+          description: ''
+  /api/v1/departments/:
+    get:
+      operationId: departments_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - departments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Department'
+          description: ''
+    post:
+      operationId: departments_create
+      tags:
+      - departments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+          description: ''
+  /api/v1/departments/{id}/:
+    get:
+      operationId: departments_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this department.
+        required: true
+      tags:
+      - departments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+          description: ''
+    patch:
+      operationId: departments_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this department.
+        required: true
+      tags:
+      - departments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartmentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+          description: ''
+    delete:
+      operationId: departments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this department.
+        required: true
+      tags:
+      - departments
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /api/v1/me/:
+    get:
+      operationId: me_retrieve
+      description: The logged-in user. Uses the default IsAuthenticated permission.
+      tags:
+      - me
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+  /api/v1/requests/:
+    get:
+      operationId: requests_list
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: integer
+      - in: query
+        name: needs_my_action
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: priority
+        schema:
+          type: string
+          enum:
+          - high
+          - low
+          - medium
+        description: |-
+          * `low` - Low
+          * `medium` - Medium
+          * `high` - High
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - approved
+            - completed
+            - draft
+            - in_review
+            - rejected
+            - submitted
+        description: |-
+          * `draft` - Draft
+          * `submitted` - Submitted
+          * `in_review` - In review
+          * `approved` - Approved
+          * `rejected` - Rejected
+          * `completed` - Completed
+        explode: true
+        style: form
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRequestListList'
+          description: ''
+    post:
+      operationId: requests_create
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RequestWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RequestWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestWrite'
+          description: ''
+  /api/v1/requests/{id}/:
+    get:
+      operationId: requests_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+    patch:
+      operationId: requests_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRequestWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRequestWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRequestWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestWrite'
+          description: ''
+    delete:
+      operationId: requests_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/requests/{id}/approve/:
+    post:
+      operationId: requests_approve_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/requests/{id}/attachments/:
+    get:
+      operationId: requests_attachments_list
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: integer
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      - in: query
+        name: needs_my_action
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: priority
+        schema:
+          type: string
+          enum:
+          - high
+          - low
+          - medium
+        description: |-
+          * `low` - Low
+          * `medium` - Medium
+          * `high` - High
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - approved
+            - completed
+            - draft
+            - in_review
+            - rejected
+            - submitted
+        description: |-
+          * `draft` - Draft
+          * `submitted` - Submitted
+          * `in_review` - In review
+          * `approved` - Approved
+          * `rejected` - Rejected
+          * `completed` - Completed
+        explode: true
+        style: form
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attachment'
+          description: ''
+    post:
+      operationId: requests_attachments_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttachmentUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+          description: ''
+        '413':
+          description: Body larger than the limit
+  /api/v1/requests/{id}/attachments/{attachment_id}/:
+    delete:
+      operationId: requests_attachments_destroy
+      parameters:
+      - in: path
+        name: attachment_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/requests/{id}/attachments/{attachment_id}/download/:
+    get:
+      operationId: requests_attachments_download_retrieve
+      parameters:
+      - in: path
+        name: attachment_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: The file, as an attachment with its original name
+  /api/v1/requests/{id}/comments/:
+    get:
+      operationId: requests_comments_list
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: integer
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      - in: query
+        name: needs_my_action
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: priority
+        schema:
+          type: string
+          enum:
+          - high
+          - low
+          - medium
+        description: |-
+          * `low` - Low
+          * `medium` - Medium
+          * `high` - High
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - approved
+            - completed
+            - draft
+            - in_review
+            - rejected
+            - submitted
+        description: |-
+          * `draft` - Draft
+          * `submitted` - Submitted
+          * `in_review` - In review
+          * `approved` - Approved
+          * `rejected` - Rejected
+          * `completed` - Completed
+        explode: true
+        style: form
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+          description: ''
+    post:
+      operationId: requests_comments_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+  /api/v1/requests/{id}/comments/{comment_id}/:
+    delete:
+      operationId: requests_comments_destroy
+      parameters:
+      - in: path
+        name: comment_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/requests/{id}/complete/:
+    post:
+      operationId: requests_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/requests/{id}/history/:
+    get:
+      operationId: requests_history_list
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: integer
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      - in: query
+        name: needs_my_action
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: priority
+        schema:
+          type: string
+          enum:
+          - high
+          - low
+          - medium
+        description: |-
+          * `low` - Low
+          * `medium` - Medium
+          * `high` - High
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - approved
+            - completed
+            - draft
+            - in_review
+            - rejected
+            - submitted
+        description: |-
+          * `draft` - Draft
+          * `submitted` - Submitted
+          * `in_review` - In review
+          * `approved` - Approved
+          * `rejected` - Rejected
+          * `completed` - Completed
+        explode: true
+        style: form
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusHistory'
+          description: ''
+  /api/v1/requests/{id}/reject/:
+    post:
+      operationId: requests_reject_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/requests/{id}/start-review/:
+    post:
+      operationId: requests_start_review_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/requests/{id}/submit/:
+    post:
+      operationId: requests_submit_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this request.
+        required: true
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+          description: ''
+  /api/v1/users/:
+    get:
+      operationId: users_list
+      description: 'Admin user management. No DELETE: deactivate with is_active=false
+        instead.'
+      parameters:
+      - in: query
+        name: department
+        schema:
+          type: integer
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - admin
+          - reviewer
+          - staff
+        description: |-
+          * `staff` - Staff
+          * `reviewer` - Reviewer
+          * `admin` - Admin
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+    post:
+      operationId: users_create
+      description: 'Admin user management. No DELETE: deactivate with is_active=false
+        instead.'
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWrite'
+          description: ''
+  /api/v1/users/{id}/:
+    get:
+      operationId: users_retrieve
+      description: 'Admin user management. No DELETE: deactivate with is_active=false
+        instead.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: users_partial_update
+      description: 'Admin user management. No DELETE: deactivate with is_active=false
+        instead.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWrite'
+          description: ''
+  /api/v1/users/{id}/set-password/:
+    post:
+      operationId: users_set_password_create
+      description: 'Admin user management. No DELETE: deactivate with is_active=false
+        instead.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+components:
+  schemas:
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        original_name:
+          type: string
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        uploaded_by:
+          allOf:
+          - $ref: '#/components/schemas/Requester'
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        can_delete:
+          type: boolean
+          readOnly: true
+      required:
+      - can_delete
+      - content_type
+      - id
+      - original_name
+      - size
+      - uploaded_at
+      - uploaded_by
+    AttachmentUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        is_active:
+          type: boolean
+      required:
+      - id
+      - name
+    CategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        is_active:
+          type: boolean
+      required:
+      - name
+    CategorySummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        author:
+          allOf:
+          - $ref: '#/components/schemas/Requester'
+          readOnly: true
+        body:
+          type: string
+          maxLength: 2000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        can_delete:
+          type: boolean
+          readOnly: true
+      required:
+      - author
+      - body
+      - can_delete
+      - created_at
+      - id
+    CommentRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+      - body
+    DashboardSummary:
+      type: object
+      description: Shape of GET /dashboard/summary/ (built by services.dashboard_summary).
+      properties:
+        total:
+          type: integer
+        by_status:
+          type: object
+          additionalProperties:
+            type: integer
+        by_priority:
+          type: object
+          additionalProperties:
+            type: integer
+        needs_my_action:
+          type: integer
+        recent:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestList'
+      required:
+      - by_priority
+      - by_status
+      - needs_my_action
+      - recent
+      - total
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        user_count:
+          type: integer
+          readOnly: true
+      required:
+      - id
+      - name
+      - user_count
+    DepartmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required:
+      - name
+    DepartmentSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    Me:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/UserRoleEnum'
+          readOnly: true
+        department:
+          allOf:
+          - $ref: '#/components/schemas/DepartmentSummary'
+          readOnly: true
+      required:
+      - department
+      - email
+      - first_name
+      - id
+      - last_name
+      - role
+      - username
+    PaginatedRequestListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestList'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PatchedCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        is_active:
+          type: boolean
+    PatchedDepartmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+    PatchedRequestWriteRequest:
+      type: object
+      description: Input for create/PATCH. status and requester are set by the server,
+        never by the client.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          minLength: 1
+        category:
+          type: integer
+        priority:
+          $ref: '#/components/schemas/RequestPriorityEnum'
+    PatchedUserWriteRequest:
+      type: object
+      description: Create/PATCH input. password is write-only and accepted on create
+        only.
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        department:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+    RequestDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategorySummary'
+          readOnly: true
+        requester:
+          allOf:
+          - $ref: '#/components/schemas/Requester'
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/RequestStatusEnum'
+        priority:
+          $ref: '#/components/schemas/RequestPriorityEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        comments_count:
+          type: integer
+          readOnly: true
+        attachments_count:
+          type: integer
+          readOnly: true
+        description:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        available_actions:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - attachments_count
+      - available_actions
+      - category
+      - comments_count
+      - created_at
+      - description
+      - id
+      - requester
+      - title
+      - updated_at
+    RequestList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategorySummary'
+          readOnly: true
+        requester:
+          allOf:
+          - $ref: '#/components/schemas/Requester'
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/RequestStatusEnum'
+        priority:
+          $ref: '#/components/schemas/RequestPriorityEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        comments_count:
+          type: integer
+          readOnly: true
+        attachments_count:
+          type: integer
+          readOnly: true
+      required:
+      - attachments_count
+      - category
+      - comments_count
+      - created_at
+      - id
+      - requester
+      - title
+    RequestPriorityEnum:
+      enum:
+      - low
+      - medium
+      - high
+      type: string
+      description: |-
+        * `low` - Low
+        * `medium` - Medium
+        * `high` - High
+    RequestStatusEnum:
+      enum:
+      - draft
+      - submitted
+      - in_review
+      - approved
+      - rejected
+      - completed
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `submitted` - Submitted
+        * `in_review` - In review
+        * `approved` - Approved
+        * `rejected` - Rejected
+        * `completed` - Completed
+    RequestWrite:
+      type: object
+      description: Input for create/PATCH. status and requester are set by the server,
+        never by the client.
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        category:
+          type: integer
+        priority:
+          $ref: '#/components/schemas/RequestPriorityEnum'
+      required:
+      - category
+      - description
+      - title
+    RequestWriteRequest:
+      type: object
+      description: Input for create/PATCH. status and requester are set by the server,
+        never by the client.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          minLength: 1
+        category:
+          type: integer
+        priority:
+          $ref: '#/components/schemas/RequestPriorityEnum'
+      required:
+      - category
+      - description
+      - title
+    Requester:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    SetPasswordRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+    StatusHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        from_status:
+          $ref: '#/components/schemas/RequestStatusEnum'
+        to_status:
+          $ref: '#/components/schemas/RequestStatusEnum'
+        changed_by:
+          allOf:
+          - $ref: '#/components/schemas/Requester'
+          readOnly: true
+        remarks:
+          type: string
+        changed_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - changed_at
+      - changed_by
+      - from_status
+      - id
+      - to_status
+    TokenObtainPair:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - refresh
+    TokenObtainPairRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+      required:
+      - access
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - refresh
+    TransitionRequest:
+      type: object
+      description: Body for the workflow actions. Whether remarks are required is
+        decided by the service.
+      properties:
+        remarks:
+          type: string
+          default: ''
+          maxLength: 2000
+    User:
+      type: object
+      description: Read shape for the admin pages. There is deliberately no password
+        field here.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/UserRoleEnum'
+          readOnly: true
+        department:
+          allOf:
+          - $ref: '#/components/schemas/DepartmentSummary'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - date_joined
+      - department
+      - email
+      - first_name
+      - full_name
+      - id
+      - is_active
+      - last_login
+      - last_name
+      - role
+      - username
+    UserRoleEnum:
+      enum:
+      - staff
+      - reviewer
+      - admin
+      type: string
+      description: |-
+        * `staff` - Staff
+        * `reviewer` - Reviewer
+        * `admin` - Admin
+    UserWrite:
+      type: object
+      description: Create/PATCH input. password is write-only and accepted on create
+        only.
+      properties:
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        department:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+      required:
+      - username
+    UserWriteRequest:
+      type: object
+      description: Create/PATCH input. password is write-only and accepted on create
+        only.
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        department:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - username
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

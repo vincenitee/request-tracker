@@ -154,8 +154,11 @@ class RejectionTests(AttachmentTestBase):
 
     def test_failed_db_write_leaves_no_orphan_file(self):
         with mock.patch.object(Attachment, "save", side_effect=RuntimeError("db down")):
-            with self.assertRaises(RuntimeError):
-                self.send(self.staff, self.draft.id, upload())
+            with self.assertLogs("apps.core.errors", level="ERROR"), self.assertLogs("django.request", level="ERROR"):
+                response = self.send(self.staff, self.draft.id, upload())
+
+        self.assertEqual(response.status_code, 500)  # JSON 500 from the exception handler
+        self.assertEqual(set(response.json()), {"detail", "errors"})
 
         media = Path(settings.MEDIA_ROOT)
         self.assertEqual([p for p in media.rglob("*") if p.is_file()], [])

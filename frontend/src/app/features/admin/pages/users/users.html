@@ -1,0 +1,254 @@
+<app-page-header title="Users" subtitle="Users are never deleted: deactivate them to block sign-in and keep their history.">
+  <p-button label="New user" icon="pi pi-user-plus" (onClick)="openCreate()" />
+</app-page-header>
+
+<div class="filters">
+  <p-iconfield>
+    <p-inputicon class="pi pi-search" />
+    <input
+      pInputText
+      type="search"
+      placeholder="Search username, name or email"
+      aria-label="Search users"
+      (input)="onSearchInput($any($event.target).value)"
+    />
+  </p-iconfield>
+  <p-select
+    [options]="roleOptions"
+    optionLabel="label"
+    optionValue="value"
+    placeholder="All roles"
+    [showClear]="true"
+    [ngModel]="role()"
+    (ngModelChange)="setFilter(role, $event)"
+    ariaLabel="Filter by role"
+  />
+  <p-select
+    [options]="departments()"
+    optionLabel="name"
+    optionValue="id"
+    placeholder="All departments"
+    [showClear]="true"
+    [ngModel]="department()"
+    (ngModelChange)="setFilter(department, $event)"
+    ariaLabel="Filter by department"
+  />
+  <p-select
+    [options]="activeOptions"
+    optionLabel="label"
+    optionValue="value"
+    placeholder="Active and inactive"
+    [showClear]="true"
+    [ngModel]="isActive()"
+    (ngModelChange)="setFilter(isActive, $event)"
+    ariaLabel="Filter by status"
+  />
+</div>
+
+<p-card>
+  <p-table
+    [value]="users()"
+    [lazy]="true"
+    (onLazyLoad)="onLazyLoad($event)"
+    [loading]="loading() && !firstLoad()"
+    [paginator]="true"
+    [rows]="pageSize"
+    [first]="first()"
+    [totalRecords]="total()"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="{first}–{last} of {totalRecords}"
+    sortField="username"
+    [sortOrder]="1"
+    dataKey="id"
+    [tableStyle]="{ 'min-width': '48rem' }"
+  >
+    <ng-template #header>
+      <tr>
+        <th scope="col" pSortableColumn="username">Username <p-sortIcon field="username" /></th>
+        <th scope="col">Name</th>
+        <th scope="col">Role</th>
+        <th scope="col">Department</th>
+        <th scope="col">Status</th>
+        <th scope="col" pSortableColumn="date_joined">Joined <p-sortIcon field="date_joined" /></th>
+        <th scope="col"><span class="sr-only">Actions</span></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-user>
+      <tr>
+        <td>
+          <strong>{{ user.username }}</strong>
+          @if (isMe(user)) {
+            <span class="you">(you)</span>
+          }
+          <div class="muted small">{{ user.email }}</div>
+        </td>
+        <td>{{ user.full_name }}</td>
+        <td class="capitalize">{{ user.role }}</td>
+        <td>{{ user.department?.name ?? '—' }}</td>
+        <td>
+          <p-tag [value]="user.is_active ? 'Active' : 'Inactive'" [severity]="user.is_active ? 'success' : 'secondary'" />
+        </td>
+        <td>{{ user.date_joined | date: 'mediumDate' }}</td>
+        <td class="actions-col">
+          <p-button icon="pi pi-pencil" [rounded]="true" [text]="true" severity="secondary" [ariaLabel]="'Edit ' + user.username" (onClick)="openEdit(user)" />
+          <p-button icon="pi pi-key" [rounded]="true" [text]="true" severity="secondary" [ariaLabel]="'Reset password for ' + user.username" (onClick)="openReset(user)" />
+          <p-button
+            [icon]="user.is_active ? 'pi pi-user-minus' : 'pi pi-user-plus'"
+            [rounded]="true"
+            [text]="true"
+            [severity]="user.is_active ? 'danger' : 'success'"
+            [ariaLabel]="(user.is_active ? 'Deactivate ' : 'Activate ') + user.username"
+            (onClick)="confirmToggleActive(user, $event)"
+          />
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr>
+        <td colspan="7">
+          @if (firstLoad()) {
+            <app-table-skeleton [rows]="6" [cols]="6" />
+          } @else if (hasFilters()) {
+            <app-empty-state icon="pi-filter-slash" title="No matching users" message="Try clearing a filter." />
+          } @else {
+            <app-empty-state icon="pi-users" title="No users yet" />
+          }
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</p-card>
+
+<!-- Create / edit -->
+<p-dialog
+  [header]="editing() ? 'Edit ' + editing()!.username : 'New user'"
+  [visible]="formOpen()"
+  (visibleChange)="formOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: '36rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+>
+  <form id="user-form" class="form-grid" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <div class="field full">
+      <label for="u-username">Username</label>
+      <input pInputText id="u-username" formControlName="username" autocomplete="off" fluid [invalid]="showError('username')" />
+      @if (showError('username')) {
+        <p-message severity="error" size="small" variant="simple">
+          @if (form.controls.username.hasError('required')) {
+            Username is required.
+          } @else if (form.controls.username.hasError('pattern')) {
+            Letters, digits and &#64;/./+/-/_ only.
+          } @else {
+            {{ form.controls.username.getError('server') }}
+          }
+        </p-message>
+      }
+    </div>
+
+    <div class="field">
+      <label for="u-first">First name</label>
+      <input pInputText id="u-first" formControlName="first_name" fluid />
+    </div>
+    <div class="field">
+      <label for="u-last">Last name</label>
+      <input pInputText id="u-last" formControlName="last_name" fluid />
+    </div>
+
+    <div class="field full">
+      <label for="u-email">Email</label>
+      <input pInputText id="u-email" type="email" formControlName="email" fluid [invalid]="showError('email')" />
+      @if (showError('email')) {
+        <p-message severity="error" size="small" variant="simple">
+          {{ form.controls.email.getError('server') ?? 'Enter a valid email address.' }}
+        </p-message>
+      }
+    </div>
+
+    <div class="field">
+      <label for="u-role">Role</label>
+      <p-select inputId="u-role" formControlName="role" [options]="roleOptions" optionLabel="label" optionValue="value" appendTo="body" fluid [invalid]="showError('role')" />
+      @if (showError('role')) {
+        <p-message severity="error" size="small" variant="simple">{{ form.controls.role.getError('server') }}</p-message>
+      }
+    </div>
+    <div class="field">
+      <label for="u-dept">Department</label>
+      <p-select
+        inputId="u-dept"
+        formControlName="department"
+        [options]="departments()"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="None"
+        [showClear]="true"
+        appendTo="body"
+        fluid
+        [invalid]="(form.hasError('reviewerNeedsDepartment') && form.controls.department.touched) || showError('department')"
+      />
+      @if (form.hasError('reviewerNeedsDepartment') && (form.controls.department.touched || form.controls.role.touched)) {
+        <p-message severity="error" size="small" variant="simple">A reviewer must belong to a department.</p-message>
+      } @else if (showError('department')) {
+        <p-message severity="error" size="small" variant="simple">{{ form.controls.department.getError('server') }}</p-message>
+      }
+    </div>
+
+    <div class="field full switch-row">
+      <p-toggleswitch inputId="u-active" formControlName="is_active" />
+      <label for="u-active">Active (can sign in)</label>
+    </div>
+    @if (showError('is_active')) {
+      <p-message class="full" severity="error" size="small" variant="simple">{{ form.controls.is_active.getError('server') }}</p-message>
+    }
+
+    @if (!editing()) {
+      <div class="field full">
+        <label for="u-password">Password</label>
+        <p-password inputId="u-password" formControlName="password" [toggleMask]="true" autocomplete="new-password" fluid [invalid]="showError('password')" />
+        @if (showError('password')) {
+          <p-message severity="error" size="small" variant="simple">
+            {{ form.controls.password.getError('server') ?? 'At least 8 characters; avoid common or all-numeric passwords.' }}
+          </p-message>
+        }
+      </div>
+    }
+  </form>
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="formOpen.set(false)" />
+    <p-button [label]="editing() ? 'Save changes' : 'Create user'" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
+  </ng-template>
+</p-dialog>
+
+<!-- Reset password -->
+<p-dialog
+  [header]="'Reset password for ' + (resetFor()?.username ?? '')"
+  [visible]="resetFor() !== null"
+  (visibleChange)="$event ? null : closeReset()"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: '28rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+>
+  <form id="reset-form" class="form-grid" [formGroup]="resetForm" (ngSubmit)="resetPassword()" novalidate>
+    <div class="field full">
+      <label for="r-password">New password</label>
+      <p-password inputId="r-password" formControlName="password" [toggleMask]="true" autocomplete="new-password" fluid />
+      @if (resetForm.controls.password.invalid && resetForm.controls.password.touched) {
+        <p-message severity="error" size="small" variant="simple">
+          {{ resetForm.controls.password.getError('server') ?? 'At least 8 characters.' }}
+        </p-message>
+      }
+    </div>
+    <div class="field full">
+      <label for="r-confirm">Confirm new password</label>
+      <p-password inputId="r-confirm" formControlName="confirm" [feedback]="false" [toggleMask]="true" autocomplete="new-password" fluid />
+      @if (resetForm.hasError('mismatch') && resetForm.controls.confirm.touched) {
+        <p-message severity="error" size="small" variant="simple">The passwords do not match.</p-message>
+      }
+    </div>
+  </form>
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closeReset()" />
+    <p-button label="Reset password" icon="pi pi-key" [loading]="resetting()" (onClick)="resetPassword()" />
+  </ng-template>
+</p-dialog>

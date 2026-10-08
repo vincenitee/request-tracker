@@ -24,6 +24,7 @@ export class RequestsService {
     if (query.search) params = params.set('search', query.search);
     for (const status of query.status ?? []) params = params.append('status', status);
     if (query.category) params = params.set('category', query.category);
+    if (query.needsMyAction) params = params.set('needs_my_action', true);
     return this.http.get<Paginated<RequestListItem>>(this.url, { params });
   }
 

@@ -12,3 +12,26 @@ body {
   background: var(--p-surface-50);
   color: var(--p-text-color);
 }
+
+/* Utilities shared by several pages */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.actions-col {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Visible keyboard focus on plain links (PrimeNG components draw their own focus rings) */
+a:focus-visible {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

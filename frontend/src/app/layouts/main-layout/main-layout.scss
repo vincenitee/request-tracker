@@ -1,3 +1,18 @@
+.skip-link {
+  position: absolute;
+  left: -9999px;
+
+  &:focus {
+    left: 16px;
+    top: 8px;
+    z-index: 1000;
+    padding: 8px 12px;
+    background: var(--p-surface-0);
+    border: 1px solid var(--p-primary-color);
+    border-radius: 4px;
+  }
+}
+
 .nav {
   display: flex;
   align-items: center;
@@ -16,7 +31,24 @@
   .brand {
     font-weight: 700;
     color: var(--p-text-color);
+    white-space: nowrap;
   }
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.divider {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--p-content-border-color);
+}
+
+.menu-button {
+  display: none;
 }
 
 .user {
@@ -25,8 +57,58 @@
   gap: 12px;
 }
 
+.drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    color: var(--p-text-color);
+    text-decoration: none;
+
+    &:hover,
+    &.active {
+      background: var(--p-surface-100);
+      color: var(--p-primary-color);
+    }
+  }
+}
+
+.drawer-heading {
+  margin: 16px 12px 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--p-text-muted-color);
+}
+
 .content {
   max-width: 1100px;
   margin: 0 auto;
   padding: 24px 16px;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// Tablet and below: the links move into the drawer.
+@media (max-width: 960px) {
+  .menu-button {
+    display: inline-flex;
+  }
+
+  .links,
+  .user-name {
+    display: none;
+  }
+
+  .nav {
+    gap: 8px;
+  }
 }

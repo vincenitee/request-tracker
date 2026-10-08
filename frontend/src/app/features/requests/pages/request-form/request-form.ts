@@ -13,8 +13,10 @@ import { Textarea } from 'primeng/textarea';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { StatusBadge } from '../../../../shared/components/status-badge/status-badge';
 import { REQUEST_PRIORITY_OPTIONS, RequestPriority, RequestStatus } from '../../../../shared/models/request-status.model';
-import { apiErrorMessage, applyServerErrors } from '../../../../shared/utils/api-errors';
-import { Category, RequestDetail, RequestWrite } from '../../models/request.model';
+import { applyServerErrors } from '../../../../shared/utils/api-errors';
+import { notifyError } from '../../../../shared/utils/notify';
+import { Category } from '../../../../shared/models/category.model';
+import { RequestDetail, RequestWrite } from '../../models/request.model';
 import { CategoriesService } from '../../services/categories.service';
 import { RequestsService } from '../../services/requests.service';
 
@@ -57,7 +59,7 @@ export class RequestForm implements OnInit {
     this.categoriesService.listActive().subscribe({
       next: (categories) => this.categories.set(categories),
       error: (error) =>
-        this.messages.add({ severity: 'error', summary: 'Could not load categories', detail: apiErrorMessage(error) }),
+        notifyError(this.messages, 'Could not load categories', error),
     });
 
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -94,11 +96,7 @@ export class RequestForm implements OnInit {
       error: (error) => {
         this.saving.set(false);
         const message = applyServerErrors(this.form, error);
-        this.messages.add({
-          severity: 'error',
-          summary: 'Could not save',
-          detail: message ?? 'Please fix the highlighted fields.',
-        });
+        notifyError(this.messages, 'Could not save', error, message ?? 'Please fix the highlighted fields.');
       },
     });
   }
@@ -112,11 +110,7 @@ export class RequestForm implements OnInit {
       },
       error: (error: HttpErrorResponse) => {
         this.loading.set(false);
-        this.messages.add({
-          severity: 'error',
-          summary: error.status === 404 ? 'Request not found' : 'Could not load request',
-          detail: error.status === 404 ? undefined : apiErrorMessage(error),
-        });
+        notifyError(this.messages, error.status === 404 ? 'Request not found' : 'Could not load request', error, error.status === 404 ? '' : undefined);
         this.router.navigate(['/requests']);
       },
     });

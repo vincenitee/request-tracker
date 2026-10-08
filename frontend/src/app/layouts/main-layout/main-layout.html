@@ -1,16 +1,35 @@
+<a class="skip-link" href="#main-content">Skip to content</a>
+
 <p-toolbar>
   <ng-template #start>
-    <nav class="nav">
-      <a class="brand" routerLink="/dashboard"><i class="pi pi-inbox"></i> Request Tracker</a>
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/requests" routerLinkActive="active">Requests</a>
+    <nav class="nav" aria-label="Main">
+      <p-button
+        class="menu-button"
+        icon="pi pi-bars"
+        [text]="true"
+        severity="secondary"
+        ariaLabel="Open menu"
+        (onClick)="menuOpen.set(true)"
+      />
+      <a class="brand" routerLink="/dashboard"><i class="pi pi-inbox" aria-hidden="true"></i> Request Tracker</a>
+      <div class="links">
+        @for (item of mainNav; track item.link) {
+          <a [routerLink]="item.link" routerLinkActive="active">{{ item.label }}</a>
+        }
+        @if (adminNav().length) {
+          <span class="divider" aria-hidden="true"></span>
+          @for (item of adminNav(); track item.link) {
+            <a [routerLink]="item.link" routerLinkActive="active">{{ item.label }}</a>
+          }
+        }
+      </div>
     </nav>
   </ng-template>
 
   <ng-template #end>
     @if (auth.currentUser(); as user) {
       <div class="user">
-        <span>{{ user.first_name || user.username }}</span>
+        <span class="user-name">{{ user.first_name || user.username }}</span>
         <p-tag [value]="user.role" severity="secondary" />
         <p-button label="Logout" icon="pi pi-sign-out" severity="secondary" [text]="true" (onClick)="logout()" />
       </div>
@@ -18,6 +37,20 @@
   </ng-template>
 </p-toolbar>
 
-<main class="content">
+<p-drawer [(visible)]="menuOpen" header="Request Tracker" position="left">
+  <nav class="drawer-nav" aria-label="Main menu">
+    @for (item of mainNav; track item.link) {
+      <a [routerLink]="item.link" routerLinkActive="active"><i [class]="item.icon" aria-hidden="true"></i> {{ item.label }}</a>
+    }
+    @if (adminNav().length) {
+      <h2 class="drawer-heading">Admin</h2>
+      @for (item of adminNav(); track item.link) {
+        <a [routerLink]="item.link" routerLinkActive="active"><i [class]="item.icon" aria-hidden="true"></i> {{ item.label }}</a>
+      }
+    }
+  </nav>
+</p-drawer>
+
+<main id="main-content" class="content" tabindex="-1">
   <router-outlet />
 </main>

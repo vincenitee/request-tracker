@@ -14,9 +14,10 @@ export function apiErrorMessage(error: unknown, fallback = 'Something went wrong
   const body = error.error as Partial<ApiError> | null;
   const detail = body?.detail ?? fallback;
   // Append field messages (e.g. a failed submit) so the toast says what to fix.
-  const fields = Object.entries(body?.errors ?? {}).map(
-    ([field, messages]) => `${humanize(field)}: ${Array.isArray(messages) ? messages.join(' ') : messages}`,
-  );
+  const fields = Object.entries(body?.errors ?? {})
+    .map(([field, messages]) => [field, Array.isArray(messages) ? messages.join(' ') : String(messages)] as const)
+    .filter(([, text]) => text !== detail) // rule errors repeat the detail on their field
+    .map(([field, text]) => `${humanize(field)}: ${text}`);
   return fields.length ? `${detail} ${fields.join(' ')}` : detail;
 }
 

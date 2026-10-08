@@ -23,11 +23,29 @@ class CategoryApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([c["name"] for c in response.data], ["Equipment"])
 
-    def test_admin_sees_all_categories(self):
+    def test_admin_sees_inactive_categories_only_on_request(self):
         self.client.force_authenticate(self.admin)
-        response = self.client.get(LIST_URL)
 
-        self.assertEqual({c["name"] for c in response.data}, {"Equipment", "Retired"})
+        default = self.client.get(LIST_URL)
+        everything = self.client.get(LIST_URL, {"include_inactive": "true"})
+
+        self.assertEqual({c["name"] for c in default.data}, {"Equipment"})
+        self.assertEqual({c["name"] for c in everything.data}, {"Equipment", "Retired"})
+
+    def test_include_inactive_is_ignored_for_non_admins(self):
+        self.client.force_authenticate(self.staff)
+        response = self.client.get(LIST_URL, {"include_inactive": "true"})
+
+        self.assertEqual({c["name"] for c in response.data}, {"Equipment"})
+
+    def test_admin_can_reactivate_an_inactive_category(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(
+            reverse("category-detail", args=[self.inactive.id]), {"is_active": True}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["is_active"])
 
     def test_non_admin_cannot_create_category(self):
         self.client.force_authenticate(self.staff)

@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
-import { Category } from '../models/request.model';
+import { Category } from '../../../shared/models/category.model';
 
 @Injectable({ providedIn: 'root' })
 export class CategoriesService {

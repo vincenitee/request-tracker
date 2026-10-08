@@ -140,3 +140,13 @@ class RequestWriteSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         # Respond with the full detail shape so the client never needs a second GET.
         return RequestDetailSerializer(instance, context=self.context).data
+
+
+class DashboardSummarySerializer(serializers.Serializer):
+    """Shape of GET /dashboard/summary/ (built by services.dashboard_summary)."""
+
+    total = serializers.IntegerField()
+    by_status = serializers.DictField(child=serializers.IntegerField())
+    by_priority = serializers.DictField(child=serializers.IntegerField())
+    needs_my_action = serializers.IntegerField()
+    recent = RequestListSerializer(many=True)

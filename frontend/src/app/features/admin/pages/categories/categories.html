@@ -1,0 +1,71 @@
+<app-page-header title="Categories" subtitle="Inactive categories stay on existing requests but cannot be chosen for new ones.">
+  <p-button label="New category" icon="pi pi-plus" (onClick)="openCreate()" />
+</app-page-header>
+
+<p-card>
+  @if (loading() && !categories().length) {
+    <app-table-skeleton [rows]="4" [cols]="3" />
+  } @else if (loadFailed()) {
+    <app-empty-state icon="pi-exclamation-triangle" title="Could not load categories">
+      <p-button label="Try again" icon="pi pi-refresh" (onClick)="load()" />
+    </app-empty-state>
+  } @else if (!categories().length) {
+    <app-empty-state icon="pi-tags" title="No categories yet" message="Requests need at least one active category.">
+      <p-button label="New category" icon="pi pi-plus" (onClick)="openCreate()" />
+    </app-empty-state>
+  } @else {
+    <p-table [value]="categories()" dataKey="id">
+      <ng-template #header>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Status</th>
+          <th scope="col">Active</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr>
+      </ng-template>
+      <ng-template #body let-category>
+        <tr>
+          <td>{{ category.name }}</td>
+          <td>
+            <p-tag [value]="category.is_active ? 'Active' : 'Inactive'" [severity]="category.is_active ? 'success' : 'secondary'" />
+          </td>
+          <td>
+            <p-toggleswitch
+              [ngModel]="category.is_active"
+              (ngModelChange)="setActive(category, $event)"
+              [disabled]="toggling() === category.id"
+              [ariaLabel]="'Active: ' + category.name"
+            />
+          </td>
+          <td class="actions-col">
+            <p-button
+              icon="pi pi-pencil"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              [ariaLabel]="'Rename ' + category.name"
+              (onClick)="openEdit(category)"
+            />
+            <p-button
+              icon="pi pi-trash"
+              [rounded]="true"
+              [text]="true"
+              severity="danger"
+              [ariaLabel]="'Delete ' + category.name"
+              (onClick)="confirmDelete(category, $event)"
+            />
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+</p-card>
+
+<app-name-dialog
+  [(visible)]="dialogOpen"
+  [header]="editing() ? 'Rename category' : 'New category'"
+  [initialName]="editing()?.name ?? ''"
+  [saving]="saving()"
+  [serverError]="nameError()"
+  (save)="save($event)"
+/>

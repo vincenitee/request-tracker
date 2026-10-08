@@ -10,6 +10,7 @@ import { Message } from 'primeng/message';
 import { Password } from 'primeng/password';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { notifyError } from '../../../shared/utils/notify';
 
 @Component({
   selector: 'app-login',
@@ -45,14 +46,12 @@ export class Login {
       },
       error: (err: HttpErrorResponse) => {
         this.loading.set(false);
-        this.messages.add({
-          severity: 'error',
-          summary: 'Sign-in failed',
-          detail:
-            err.status === 401
-              ? 'Invalid username or password.'
-              : 'Could not reach the server. Please try again.',
-        });
+        // 401 is ours to explain; network errors and 429 ("too many attempts") come from the global interceptor.
+        if (err.status === 401) {
+          this.messages.add({ severity: 'error', summary: 'Sign-in failed', detail: 'Invalid username or password.' });
+        } else {
+          notifyError(this.messages, 'Sign-in failed', err);
+        }
       },
     });
   }

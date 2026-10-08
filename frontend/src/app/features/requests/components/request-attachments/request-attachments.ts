@@ -18,7 +18,8 @@ import {
 } from '../../../../shared/constants/attachments';
 import { FileSizePipe } from '../../../../shared/pipes/file-size-pipe';
 import { RelativeDatePipe } from '../../../../shared/pipes/relative-date-pipe';
-import { apiErrorMessage, blobApiErrorMessage } from '../../../../shared/utils/api-errors';
+import { blobApiErrorMessage } from '../../../../shared/utils/api-errors';
+import { notifyError } from '../../../../shared/utils/notify';
 import { Attachment, RequestDetail } from '../../models/request.model';
 import { AttachmentsService } from '../../services/attachments.service';
 
@@ -84,7 +85,7 @@ export class RequestAttachments {
       },
       error: (error) => {
         this.loading.set(false);
-        this.messages.add({ severity: 'error', summary: 'Could not load attachments', detail: apiErrorMessage(error) });
+        notifyError(this.messages, 'Could not load attachments', error);
       },
     });
   }
@@ -127,7 +128,7 @@ export class RequestAttachments {
             }),
             // One failure must not stop the remaining files.
             catchError((error) => {
-              this.messages.add({ severity: 'error', summary: `${file.name} was not uploaded`, detail: apiErrorMessage(error) });
+              notifyError(this.messages, `${file.name} was not uploaded`, error);
               return of(null);
             }),
           );
@@ -154,7 +155,7 @@ export class RequestAttachments {
       },
       error: async (error) => {
         this.downloading.set(null);
-        this.messages.add({ severity: 'error', summary: 'Download failed', detail: await blobApiErrorMessage(error) });
+        notifyError(this.messages, 'Download failed', error, await blobApiErrorMessage(error));
       },
     });
   }
@@ -174,7 +175,7 @@ export class RequestAttachments {
             this.messages.add({ severity: 'success', summary: 'File deleted', detail: attachment.original_name });
           },
           error: (error) =>
-            this.messages.add({ severity: 'error', summary: 'Could not delete file', detail: apiErrorMessage(error) }),
+            notifyError(this.messages, 'Could not delete file', error),
         }),
     });
   }
