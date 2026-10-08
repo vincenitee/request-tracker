@@ -1,0 +1,67 @@
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  p-iconfield {
+    flex: 1 1 260px;
+
+    input {
+      width: 100%;
+    }
+  }
+
+  p-select {
+    min-width: 180px;
+  }
+}
+
+.actions-col {
+  width: 7rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--p-text-muted-color);
+}
+
+.priority {
+  font-weight: 600;
+}
+
+.priority-high {
+  color: var(--p-red-600);
+}
+
+.priority-medium {
+  color: var(--p-amber-600);
+}
+
+.priority-low {
+  color: var(--p-text-muted-color);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

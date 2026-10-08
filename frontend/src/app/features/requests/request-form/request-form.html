@@ -1,0 +1,88 @@
+<div class="page-header">
+  <p-button icon="pi pi-arrow-left" [text]="true" severity="secondary" routerLink="/requests" ariaLabel="Back to requests" />
+  <h1>{{ requestId() ? 'Edit request' : 'New request' }}</h1>
+  @if (status(); as s) {
+    <app-status-badge [status]="s" />
+  }
+</div>
+
+<p-card>
+  @if (loading()) {
+    <p class="muted"><i class="pi pi-spin pi-spinner"></i> Loading request…</p>
+  } @else {
+    @if (readOnlyReason(); as reason) {
+      <div class="read-only"><p-message severity="info" icon="pi pi-lock">{{ reason }}</p-message></div>
+    }
+
+    <form class="fields" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="field">
+        <label for="title">Title</label>
+        <input pInputText id="title" formControlName="title" [maxlength]="titleMax" fluid [invalid]="showError('title')" />
+        @if (showError('title')) {
+          <p-message severity="error" size="small" variant="simple">
+            @if (form.controls.title.hasError('required')) {
+              Title is required.
+            } @else if (form.controls.title.hasError('maxlength')) {
+              Title must be {{ titleMax }} characters or fewer.
+            } @else {
+              {{ form.controls.title.getError('server') }}
+            }
+          </p-message>
+        }
+      </div>
+
+      <div class="field">
+        <label for="description">Description</label>
+        <textarea pTextarea id="description" formControlName="description" rows="5" [autoResize]="true" fluid [invalid]="showError('description')"></textarea>
+        @if (showError('description')) {
+          <p-message severity="error" size="small" variant="simple">
+            {{ form.controls.description.hasError('required') ? 'Description is required.' : form.controls.description.getError('server') }}
+          </p-message>
+        }
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="category">Category</label>
+          <p-select
+            inputId="category"
+            formControlName="category"
+            [options]="categories()"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Choose a category"
+            fluid
+            [invalid]="showError('category')"
+          />
+          @if (showError('category')) {
+            <p-message severity="error" size="small" variant="simple">
+              {{ form.controls.category.hasError('required') ? 'Category is required.' : form.controls.category.getError('server') }}
+            </p-message>
+          }
+        </div>
+
+        <div class="field">
+          <label for="priority">Priority</label>
+          <p-select
+            inputId="priority"
+            formControlName="priority"
+            [options]="priorityOptions"
+            optionLabel="label"
+            optionValue="value"
+            fluid
+          />
+          @if (showError('priority')) {
+            <p-message severity="error" size="small" variant="simple">{{ form.controls.priority.getError('server') ?? 'Priority is required.' }}</p-message>
+          }
+        </div>
+      </div>
+
+      <div class="actions">
+        <p-button label="Cancel" severity="secondary" [outlined]="true" routerLink="/requests" />
+        @if (!readOnlyReason()) {
+          <p-button type="submit" [label]="requestId() ? 'Save changes' : 'Create draft'" icon="pi pi-check" [loading]="saving()" />
+        }
+      </div>
+    </form>
+  }
+</p-card>

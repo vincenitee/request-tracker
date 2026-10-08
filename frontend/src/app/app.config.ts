@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import Aura from '@primeuix/themes/aura';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import { firstValueFrom } from 'rxjs';
 
@@ -23,8 +23,9 @@ export const appConfig: ApplicationConfig = {
     // PrimeNG 21 uses native CSS animations, so provideAnimationsAsync() is not needed.
     // Light mode only until something adds .app-dark to <html> (room for a theme toggle later).
     providePrimeNG({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } }),
-    // App-wide so services (e.g. a future error interceptor) can raise toasts too.
+    // App-wide so any component or service can raise toasts and confirmations; rendered once in app.html.
     MessageService,
+    ConfirmationService,
     // Runs before the first navigation, so the guard already knows who is logged in after a reload.
     provideAppInitializer(() => firstValueFrom(inject(AuthService).restoreSession())),
   ],

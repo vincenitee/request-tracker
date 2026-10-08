@@ -1,0 +1,114 @@
+<div class="page-header">
+  <h1>Requests</h1>
+  <p-button label="New request" icon="pi pi-plus" routerLink="/requests/new" />
+</div>
+
+<div class="filters">
+  <p-iconfield>
+    <p-inputicon class="pi pi-search" />
+    <input
+      pInputText
+      type="search"
+      placeholder="Search title or description"
+      aria-label="Search requests"
+      [value]="search()"
+      (input)="onSearchInput($any($event.target).value)"
+    />
+  </p-iconfield>
+
+  <p-select
+    [options]="statusOptions"
+    optionLabel="label"
+    optionValue="value"
+    placeholder="All statuses"
+    [showClear]="true"
+    [ngModel]="status()"
+    (ngModelChange)="onStatusChange($event)"
+    ariaLabel="Filter by status"
+  />
+
+  <p-select
+    [options]="categories()"
+    optionLabel="name"
+    optionValue="id"
+    placeholder="All categories"
+    [showClear]="true"
+    [ngModel]="category()"
+    (ngModelChange)="onCategoryChange($event)"
+    ariaLabel="Filter by category"
+  />
+</div>
+
+<p-table
+  [value]="items()"
+  [lazy]="true"
+  (onLazyLoad)="onLazyLoad($event)"
+  [loading]="loading()"
+  [paginator]="true"
+  [rows]="pageSize"
+  [first]="first()"
+  [totalRecords]="total()"
+  [showCurrentPageReport]="true"
+  currentPageReportTemplate="{first}–{last} of {totalRecords}"
+  sortField="created_at"
+  [sortOrder]="-1"
+  dataKey="id"
+  [tableStyle]="{ 'min-width': '52rem' }"
+>
+  <ng-template #header>
+    <tr>
+      <th pSortableColumn="title">Title <p-sortIcon field="title" /></th>
+      <th>Category</th>
+      <th>Requester</th>
+      <th>Status</th>
+      <th pSortableColumn="priority">Priority <p-sortIcon field="priority" /></th>
+      <th pSortableColumn="created_at">Created <p-sortIcon field="created_at" /></th>
+      <th class="actions-col"><span class="sr-only">Actions</span></th>
+    </tr>
+  </ng-template>
+
+  <ng-template #body let-item>
+    <tr>
+      <td>{{ item.title }}</td>
+      <td>{{ item.category.name }}</td>
+      <td>{{ item.requester.name }}</td>
+      <td><app-status-badge [status]="item.status" /></td>
+      <td>
+        <span class="priority" [class]="'priority-' + item.priority">{{ priorityLabel(item.priority) }}</span>
+      </td>
+      <td>{{ item.created_at | date: 'mediumDate' }}</td>
+      <td class="actions-col">
+        @if (canModify(item)) {
+          <p-button
+            icon="pi pi-pencil"
+            [rounded]="true"
+            [text]="true"
+            severity="secondary"
+            [routerLink]="['/requests', item.id, 'edit']"
+            [ariaLabel]="'Edit ' + item.title"
+          />
+          <p-button
+            icon="pi pi-trash"
+            [rounded]="true"
+            [text]="true"
+            severity="danger"
+            (onClick)="confirmDelete(item, $event)"
+            [ariaLabel]="'Delete ' + item.title"
+          />
+        }
+      </td>
+    </tr>
+  </ng-template>
+
+  <ng-template #emptymessage>
+    <tr>
+      <td colspan="7" class="empty">
+        @if (search() || status() || category()) {
+          No requests match these filters.
+        } @else {
+          No requests yet. Create your first one with “New request”.
+        }
+      </td>
+    </tr>
+  </ng-template>
+</p-table>

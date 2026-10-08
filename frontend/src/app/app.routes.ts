@@ -12,11 +12,16 @@ export const routes: Routes = [
     path: '',
     component: MainLayout,
     canActivate: [authGuard],
+    canActivateChild: [authGuard], // re-checked on every child navigation, not only on entering the layout
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {
         path: 'dashboard',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
+      },
+      {
+        path: 'requests',
+        loadChildren: () => import('./features/requests/routes').then((m) => m.REQUESTS_ROUTES),
       },
     ],
   },

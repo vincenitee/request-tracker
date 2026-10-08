@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     # Local
     "apps.accounts",
     "apps.core",
+    "apps.service_requests",
 ]
 
 MIDDLEWARE = [
@@ -153,6 +154,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # One error shape for the whole API: {"detail": ..., "errors": {field: [..]}}
+    "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
 }
 
 
