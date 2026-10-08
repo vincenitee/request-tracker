@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.accounts.models import User
 
 from . import services
-from .models import Category, Request
+from .models import Category, Request, StatusHistory
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -39,8 +39,27 @@ class RequestListSerializer(serializers.ModelSerializer):
 
 
 class RequestDetailSerializer(RequestListSerializer):
+    available_actions = serializers.SerializerMethodField()
+
     class Meta(RequestListSerializer.Meta):
-        fields = RequestListSerializer.Meta.fields + ("description", "updated_at")
+        fields = RequestListSerializer.Meta.fields + ("description", "updated_at", "available_actions")
+
+    def get_available_actions(self, obj) -> list[str]:
+        return services.get_available_actions(obj, self.context["request"].user)
+
+
+class StatusHistorySerializer(serializers.ModelSerializer):
+    changed_by = RequesterSerializer(read_only=True)
+
+    class Meta:
+        model = StatusHistory
+        fields = ("id", "from_status", "to_status", "changed_by", "remarks", "changed_at")
+
+
+class TransitionSerializer(serializers.Serializer):
+    """Body for the workflow actions. Whether remarks are required is decided by the service."""
+
+    remarks = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")
 
 
 class RequestWriteSerializer(serializers.ModelSerializer):

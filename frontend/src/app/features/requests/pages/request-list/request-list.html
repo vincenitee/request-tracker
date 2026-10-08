@@ -3,6 +3,19 @@
   <p-button label="New request" icon="pi pi-plus" routerLink="/requests/new" />
 </div>
 
+@if (showPresets()) {
+  <p-selectbutton
+    class="presets"
+    [options]="presetOptions"
+    optionLabel="label"
+    optionValue="value"
+    [allowEmpty]="false"
+    [ngModel]="preset()"
+    (ngModelChange)="onPresetChange($event)"
+    ariaLabel="Quick filter"
+  />
+}
+
 <div class="filters">
   <p-iconfield>
     <p-inputicon class="pi pi-search" />
@@ -69,15 +82,23 @@
 
   <ng-template #body let-item>
     <tr>
-      <td>{{ item.title }}</td>
+      <td><a class="title-link" [routerLink]="['/requests', item.id]">{{ item.title }}</a></td>
       <td>{{ item.category.name }}</td>
       <td>{{ item.requester.name }}</td>
       <td><app-status-badge [status]="item.status" /></td>
       <td>
         <span class="priority" [class]="'priority-' + item.priority">{{ priorityLabel(item.priority) }}</span>
       </td>
-      <td>{{ item.created_at | date: 'mediumDate' }}</td>
+      <td [title]="item.created_at | date: 'medium'">{{ item.created_at | relativeDate }}</td>
       <td class="actions-col">
+        <p-button
+          icon="pi pi-eye"
+          [rounded]="true"
+          [text]="true"
+          severity="secondary"
+          [routerLink]="['/requests', item.id]"
+          [ariaLabel]="'View ' + item.title"
+        />
         @if (canModify(item)) {
           <p-button
             icon="pi pi-pencil"
@@ -103,7 +124,7 @@
   <ng-template #emptymessage>
     <tr>
       <td colspan="7" class="empty">
-        @if (search() || status() || category()) {
+        @if (search() || status() || category() || preset() !== 'all') {
           No requests match these filters.
         } @else {
           No requests yet. Create your first one with “New request”.

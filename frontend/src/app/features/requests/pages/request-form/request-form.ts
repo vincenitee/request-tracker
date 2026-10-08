@@ -10,13 +10,13 @@ import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Textarea } from 'primeng/textarea';
 
-import { AuthService } from '../../../core/auth/auth.service';
-import { StatusBadge } from '../../../shared/components/status-badge/status-badge';
-import { REQUEST_PRIORITY_OPTIONS, RequestPriority, RequestStatus } from '../../../shared/models/request-status.model';
-import { apiErrorMessage, applyServerErrors } from '../../../shared/utils/api-errors';
-import { Category, RequestDetail, RequestWrite } from '../models/request.model';
-import { CategoriesService } from '../services/categories.service';
-import { RequestsService } from '../services/requests.service';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { StatusBadge } from '../../../../shared/components/status-badge/status-badge';
+import { REQUEST_PRIORITY_OPTIONS, RequestPriority, RequestStatus } from '../../../../shared/models/request-status.model';
+import { apiErrorMessage, applyServerErrors } from '../../../../shared/utils/api-errors';
+import { Category, RequestDetail, RequestWrite } from '../../models/request.model';
+import { CategoriesService } from '../../services/categories.service';
+import { RequestsService } from '../../services/requests.service';
 
 export const TITLE_MAX = 200;
 

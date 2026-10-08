@@ -12,7 +12,16 @@ export function apiErrorMessage(error: unknown, fallback = 'Something went wrong
     return 'Could not reach the server. Please try again.';
   }
   const body = error.error as Partial<ApiError> | null;
-  return body?.detail ?? fallback;
+  const detail = body?.detail ?? fallback;
+  // Append field messages (e.g. a failed submit) so the toast says what to fix.
+  const fields = Object.entries(body?.errors ?? {}).map(
+    ([field, messages]) => `${humanize(field)}: ${Array.isArray(messages) ? messages.join(' ') : messages}`,
+  );
+  return fields.length ? `${detail} ${fields.join(' ')}` : detail;
+}
+
+function humanize(field: string): string {
+  return field === 'non_field_errors' ? 'Error' : field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ');
 }
 
 /**

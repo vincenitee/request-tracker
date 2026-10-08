@@ -1,0 +1,122 @@
+<div class="page-header">
+  <p-button icon="pi pi-arrow-left" [text]="true" severity="secondary" routerLink="/requests" ariaLabel="Back to requests" />
+  <h1>Request details</h1>
+</div>
+
+@if (loading() && !request()) {
+  <p-card><p class="muted"><i class="pi pi-spin pi-spinner"></i> Loading request…</p></p-card>
+} @else if (notFound()) {
+  <p-card>
+    <div class="state">
+      <i class="pi pi-search state-icon"></i>
+      <h2>Request not found</h2>
+      <p class="muted">It may have been deleted, or you do not have access to it.</p>
+      <p-button label="Back to requests" routerLink="/requests" />
+    </div>
+  </p-card>
+} @else if (loadError(); as message) {
+  <p-card>
+    <div class="state">
+      <i class="pi pi-exclamation-triangle state-icon"></i>
+      <h2>Something went wrong</h2>
+      <p class="muted">{{ message }}</p>
+      <p-button label="Try again" icon="pi pi-refresh" (onClick)="load()" />
+    </div>
+  </p-card>
+} @else if (request(); as r) {
+  <div class="layout">
+    <p-card>
+      <div class="title-row">
+        <h2>{{ r.title }}</h2>
+        <app-status-badge [status]="r.status" />
+      </div>
+
+      <dl class="meta">
+        <dt>Category</dt>
+        <dd>{{ r.category.name }}</dd>
+        <dt>Priority</dt>
+        <dd>{{ priorityLabels[r.priority] }}</dd>
+        <dt>Requester</dt>
+        <dd>{{ r.requester.name }}</dd>
+        <dt>Created</dt>
+        <dd [title]="r.created_at | date: 'medium'">{{ r.created_at | relativeDate }}</dd>
+        <dt>Last updated</dt>
+        <dd [title]="r.updated_at | date: 'medium'">{{ r.updated_at | relativeDate }}</dd>
+      </dl>
+
+      <h3>Description</h3>
+      <p class="description">{{ r.description }}</p>
+
+      @if (r.available_actions.length || canEdit()) {
+        <div class="actions">
+          @if (canEdit()) {
+            <p-button label="Edit" icon="pi pi-pencil" severity="secondary" [outlined]="true" [routerLink]="['/requests', r.id, 'edit']" />
+          }
+          @for (action of r.available_actions; track action) {
+            <p-button
+              [label]="actions[action].label"
+              [icon]="actions[action].icon"
+              [severity]="actions[action].severity"
+              [loading]="acting() === action"
+              [disabled]="acting() !== null"
+              (onClick)="onAction(action, $event)"
+            />
+          }
+        </div>
+      }
+    </p-card>
+
+    <p-card header="History">
+      @if (history().length) {
+        <p-timeline [value]="history()" align="left" [pt]="timelinePt" class="history">
+          <ng-template #content let-item>
+            <div class="history-item">
+              <div class="history-change">
+                <app-status-badge [status]="item.to_status" />
+                <span class="muted">from {{ statusLabel(item.from_status) }}</span>
+              </div>
+              <div class="muted small">
+                {{ item.changed_by.name }} ·
+                <span [title]="item.changed_at | date: 'medium'">{{ item.changed_at | relativeDate }}</span>
+              </div>
+              @if (item.remarks) {
+                <blockquote class="remarks">{{ item.remarks }}</blockquote>
+              }
+            </div>
+          </ng-template>
+        </p-timeline>
+      } @else {
+        <p class="muted">No status changes yet. History starts when the request is submitted.</p>
+      }
+    </p-card>
+  </div>
+}
+
+<p-dialog
+  header="Reject request"
+  [(visible)]="rejectVisible"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: '32rem' }"
+  [breakpoints]="{ '640px': '95vw' }"
+>
+  <label for="reject-remarks" class="dialog-label">Remarks (required)</label>
+  <textarea
+    pTextarea
+    id="reject-remarks"
+    [formControl]="rejectRemarks"
+    rows="4"
+    [autoResize]="true"
+    fluid
+    placeholder="Explain why this request is rejected"
+    [invalid]="rejectRemarks.invalid && rejectRemarks.touched"
+  ></textarea>
+  @if (rejectRemarks.invalid && rejectRemarks.touched) {
+    <p-message severity="error" size="small" variant="simple">Remarks are required to reject a request.</p-message>
+  }
+
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="rejectVisible.set(false)" />
+    <p-button label="Reject" icon="pi pi-times" severity="danger" [loading]="acting() === 'reject'" (onClick)="confirmReject()" />
+  </ng-template>
+</p-dialog>

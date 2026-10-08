@@ -4,7 +4,14 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
 import { Paginated } from '../../../shared/models/paginated.model';
-import { RequestDetail, RequestListItem, RequestQuery, RequestWrite } from '../models/request.model';
+import {
+  RequestAction,
+  RequestDetail,
+  RequestListItem,
+  RequestQuery,
+  RequestWrite,
+  StatusHistoryItem,
+} from '../models/request.model';
 
 @Injectable({ providedIn: 'root' })
 export class RequestsService {
@@ -15,7 +22,7 @@ export class RequestsService {
     let params = new HttpParams().set('page', query.page);
     if (query.ordering) params = params.set('ordering', query.ordering);
     if (query.search) params = params.set('search', query.search);
-    if (query.status) params = params.set('status', query.status);
+    for (const status of query.status ?? []) params = params.append('status', status);
     if (query.category) params = params.set('category', query.category);
     return this.http.get<Paginated<RequestListItem>>(this.url, { params });
   }
@@ -34,5 +41,34 @@ export class RequestsService {
 
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.url}${id}/`);
+  }
+
+  history(id: number): Observable<StatusHistoryItem[]> {
+    return this.http.get<StatusHistoryItem[]>(`${this.url}${id}/history/`);
+  }
+
+  submit(id: number): Observable<RequestDetail> {
+    return this.transition(id, 'submit');
+  }
+
+  startReview(id: number): Observable<RequestDetail> {
+    return this.transition(id, 'start_review');
+  }
+
+  approve(id: number, remarks = ''): Observable<RequestDetail> {
+    return this.transition(id, 'approve', remarks);
+  }
+
+  reject(id: number, remarks: string): Observable<RequestDetail> {
+    return this.transition(id, 'reject', remarks);
+  }
+
+  complete(id: number): Observable<RequestDetail> {
+    return this.transition(id, 'complete');
+  }
+
+  /** POST /requests/{id}/<action>/ (URL segments are kebab-case: start_review -> start-review). */
+  transition(id: number, action: RequestAction, remarks = ''): Observable<RequestDetail> {
+    return this.http.post<RequestDetail>(`${this.url}${id}/${action.replace('_', '-')}/`, { remarks });
   }
 }

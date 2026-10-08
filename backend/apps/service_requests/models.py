@@ -48,3 +48,24 @@ class Request(TimeStampedModel):
 
     def __str__(self):
         return self.title
+
+
+class StatusHistory(models.Model):
+    """Audit trail: one row per workflow transition. Written only by services.perform_transition."""
+
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="history")
+    from_status = models.CharField(max_length=20, choices=Request.Status.choices)
+    to_status = models.CharField(max_length=20, choices=Request.Status.choices)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="status_changes"
+    )
+    remarks = models.TextField(blank=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-changed_at", "-id"]
+        indexes = [models.Index(fields=["request", "changed_at"])]
+        verbose_name_plural = "status history"
+
+    def __str__(self):
+        return f"{self.request_id}: {self.from_status} -> {self.to_status}"

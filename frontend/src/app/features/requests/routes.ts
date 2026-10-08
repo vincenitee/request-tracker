@@ -4,14 +4,18 @@ import { Routes } from '@angular/router';
 export const REQUESTS_ROUTES: Routes = [
   {
     path: '',
-    loadComponent: () => import('./request-list/request-list').then((m) => m.RequestList),
+    loadComponent: () => import('./pages/request-list/request-list').then((m) => m.RequestList),
   },
   {
     path: 'new',
-    loadComponent: () => import('./request-form/request-form').then((m) => m.RequestForm),
+    loadComponent: () => import('./pages/request-form/request-form').then((m) => m.RequestForm),
+  },
+  {
+    path: ':id',
+    loadComponent: () => import('./pages/request-detail/request-detail').then((m) => m.RequestDetail),
   },
   {
     path: ':id/edit',
-    loadComponent: () => import('./request-form/request-form').then((m) => m.RequestForm),
+    loadComponent: () => import('./pages/request-form/request-form').then((m) => m.RequestForm),
   },
 ];

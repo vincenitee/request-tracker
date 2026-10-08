@@ -14,6 +14,9 @@ PRIORITY_RANK = Case(
 
 
 class RequestFilter(django_filters.FilterSet):
+    # Repeatable: ?status=submitted&status=in_review (one value still works as before).
+    status = django_filters.MultipleChoiceFilter(choices=Request.Status.choices)
+
     class Meta:
         model = Request
         fields = ("status", "category", "priority")

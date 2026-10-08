@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -9,23 +9,31 @@ import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
+import { SelectButton } from 'primeng/selectbutton';
 import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { catchError, debounceTime, distinctUntilChanged, map, of, Subject, switchMap, tap } from 'rxjs';
 
-import { AuthService } from '../../../core/auth/auth.service';
-import { StatusBadge } from '../../../shared/components/status-badge/status-badge';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { StatusBadge } from '../../../../shared/components/status-badge/status-badge';
 import {
   REQUEST_PRIORITY_LABELS,
   REQUEST_STATUS_OPTIONS,
   RequestPriority,
   RequestStatus,
-} from '../../../shared/models/request-status.model';
-import { apiErrorMessage } from '../../../shared/utils/api-errors';
-import { Category, RequestListItem, RequestQuery } from '../models/request.model';
-import { CategoriesService } from '../services/categories.service';
-import { RequestsService } from '../services/requests.service';
+} from '../../../../shared/models/request-status.model';
+import { RelativeDatePipe } from '../../../../shared/pipes/relative-date-pipe';
+import { apiErrorMessage } from '../../../../shared/utils/api-errors';
+import { Category, RequestListItem, RequestQuery } from '../../models/request.model';
+import { CategoriesService } from '../../services/categories.service';
+import { RequestsService } from '../../services/requests.service';
 
 const PAGE_SIZE = 10; // matches DRF PAGE_SIZE
+
+type Preset = 'all' | 'needs_review';
+const PRESET_STATUSES: Record<Preset, RequestStatus[]> = {
+  all: [],
+  needs_review: ['submitted', 'in_review'],
+};
 
 @Component({
   selector: 'app-request-list',
@@ -39,7 +47,9 @@ const PAGE_SIZE = 10; // matches DRF PAGE_SIZE
     InputIcon,
     InputText,
     Select,
+    SelectButton,
     StatusBadge,
+    RelativeDatePipe,
   ],
   templateUrl: './request-list.html',
   styleUrl: './request-list.scss',
@@ -51,6 +61,14 @@ export class RequestList implements OnInit {
   private readonly messages = inject(MessageService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly currentUser = inject(AuthService).currentUser;
+
+  /** Quick tabs for the people who review requests. */
+  protected readonly showPresets = computed(() => ['reviewer', 'admin'].includes(this.currentUser()?.role ?? ''));
+  protected readonly presetOptions = [
+    { label: 'All', value: 'all' as Preset },
+    { label: 'Needs review', value: 'needs_review' as Preset },
+  ];
+  protected readonly preset = signal<Preset>('all');
 
   protected readonly pageSize = PAGE_SIZE;
   protected readonly statusOptions = REQUEST_STATUS_OPTIONS;
@@ -120,6 +138,17 @@ export class RequestList implements OnInit {
 
   protected onStatusChange(value: RequestStatus | null): void {
     this.status.set(value);
+    if (value) {
+      this.preset.set('all'); // an explicit status replaces the preset
+    }
+    this.resetToFirstPage();
+  }
+
+  protected onPresetChange(value: Preset | null): void {
+    this.preset.set(value ?? 'all');
+    if (this.preset() !== 'all') {
+      this.status.set(null); // the preset replaces an explicit status
+    }
     this.resetToFirstPage();
   }
 
@@ -173,7 +202,7 @@ export class RequestList implements OnInit {
       page: Math.floor(this.first() / PAGE_SIZE) + 1,
       ordering: this.ordering,
       search: this.search(),
-      status: this.status(),
+      status: this.status() ? [this.status()!] : PRESET_STATUSES[this.preset()],
       category: this.category(),
     };
   }

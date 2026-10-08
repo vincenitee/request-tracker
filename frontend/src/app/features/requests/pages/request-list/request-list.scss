@@ -30,8 +30,24 @@
   }
 }
 
+.presets {
+  display: inline-flex;
+  margin-bottom: 12px;
+}
+
+.title-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--p-primary-color);
+    text-decoration: underline;
+  }
+}
+
 .actions-col {
-  width: 7rem;
+  width: 9.5rem;
   text-align: right;
   white-space: nowrap;
 }
